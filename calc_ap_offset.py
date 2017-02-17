@@ -432,7 +432,7 @@ for filtername in filternames.keys():
 			#save an error if this filtering removes all the objects in the list
 			if len(newx)==0 or len(newy)==0:
 				print 'No suitable apass matches found for ccd', ccdnum
-				err_line = 'Block '+ str(block_choice) + ', filter: ' + str(filtername) + ', CCD: ' + str(ccdnum) + 'Ap: ', + str(apnum) + ', no matches with suitable magnitudes '
+				err_line = 'Block '+ str(block_choice) + ', filter: ' + str(filtername) + ', CCD: ' + str(ccdnum) + 'Ap: ' + str(apnum) + ', no matches with suitable magnitudes '
 				intersect_list.append( [ccdnum, float('nan') ] )
 				error_list.append( [ccdnum, float('nan') ] )
 				no_matches.append(err_line)
