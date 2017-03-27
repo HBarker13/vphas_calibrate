@@ -48,14 +48,20 @@ elif block_choice=='c':
 
 for i,filtername in enumerate(filternames):
 
+
 	print filtername
 	catpath = glob.glob(block[filternames[filtername]]+'/catalogues/*_fix_cat.fits')
 	opencat = fits.open(catpath[0], mode='update')
 	for ccdnum in range(1,33):
+
+	
 		print'ccd', ccdnum
 		hdr = opencat[ccdnum].header
 		table = opencat[ccdnum].data
+		
+		
 		for apnum in range(2, 8):
+
 		
 			#skip anything but aperture 2,3,4,5 for u
 			if filtername=='u' and apnum>5:
@@ -116,7 +122,7 @@ for i,filtername in enumerate(filternames):
 			
 			
 			#aperture correction and error in magnitudes
-			if filtername!='u':
+			elif filtername!='u':
 				apcor_path = os.getcwd()+'/aperture_corrections/'+block_choice+'_'+filtername+'_aper'+str(apnum)+'_corrections.txt'
 				with open(apcor_path, 'r') as f:
 					for line in f:
@@ -131,7 +137,7 @@ for i,filtername in enumerate(filternames):
 						if int(line[0])==ccdnum:
 							ap_error = float(line[1])
 							
-					
+			#else if filtername==u		
 			else:
 				apcor_path = os.getcwd()+'/u_corrections_'+block_choice+'.txt'
 				if not os.path.exists(apcor_path):
@@ -174,7 +180,19 @@ for i,filtername in enumerate(filternames):
 	              	low_mag = [line-conv for line in low_mag]
 	              	high_mag = [line-conv for line in high_mag]
 			
-	
+			""" #For checking mags
+			mag = [ ( -2.5*math.log10( line[0] /line[1] ) + hdr['nightzpt'] -apcor ) if line[0]+line[1]>0 else float('nan') for line in zip(counts, exp_t) ]
+			mag = [line-conv for line in mag]
+			
+			print mag
+			print low_mag
+			print high_mag
+			print
+			print mag[0]-low_mag[0]
+			print mag[0]-high_mag[0]
+			avg = math.sqrt( (mag[0]-low_mag[0])**2 + mag[0]-high_mag[0]**2)
+			raw_input('')
+			"""
 	
 	
 			#append column to table

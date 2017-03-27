@@ -81,7 +81,7 @@ for block_index,block in enumerate(all_catnames):
 	  	orig_name = catpath[:-5]+'_original.fits'
 	    	if not os.path.exists(orig_name):
 	    		shutil.copyfile(catpath, orig_name)
-    	
+	    		print 'Created ', orig_name   	
  	
     	
 	    	#open the catalogue
@@ -116,146 +116,153 @@ for block_index,block in enumerate(all_catnames):
 
     		#add useful columns to the catalogue: filtername, directory+ccd, exposure_time, magzpt, magnitude and error
     		for ccdnum in range(1,33):
-        		print "ccd %i: " %ccdnum
+        		print "ccd %i " %ccdnum
             
-           	#delete the 'Blank' columns
-   	   	#Could be better, but saves changing the rest of the script
-           	cols = cat[ccdnum].columns
-           	blank_names = [line for line in cols.names if 'Blank' in line]
-   	    	for name in blank_names:
-   			cols.del_col(name)
-   			cat[ccdnum].columns = cols
+           		#delete the 'Blank' columns
+   	   		#Could be better, but saves changing the rest of the script
+   	   		#DO NOT USE: makes fits files invalid
+           		#cols = cat[ccdnum].columns
+           		#blank_names = [line for line in cols.names if 'Blank' in line]
+   	   	 	#for name in blank_names:
+   			#	cols.del_col(name)
+   			#	cat[ccdnum].columns = cols
+
    		
 
-            	table = cat[ccdnum].data
-            	hdr = cat[ccdnum].header
-            	colnames = table.dtype.names
+        	    	table = cat[ccdnum].data
+        	    	hdr = cat[ccdnum].header
+        	    	colnames = table.dtype.names
 
-          
 
-           	if 'Filter' not in colnames:
-                	#print "Adding filtername"
-                	filtername_list = [filtername for x in range( len(table) )]
-                	table = make_lists.append_table(table, 'Filter', filtername_list, np.dtype('S10'))
+        	   	if 'Filter' not in colnames:
+        	        	#print "Adding filtername"
+        	        	filtername_list = [filtername for x in range( len(table) )]
+        	        	table = make_lists.append_table(table, 'Filter', filtername_list, np.dtype('S10'))
  
-   	    	#filepath
-            	if 'Fname' not in colnames:
-            	   #print "Adding directory name"
-            	    img_name, _ = catpath.rsplit('/', 1)
-            	    img_name, _ = img_name.rsplit('/', 1)
-            	    _ ,img_name = img_name.rsplit('/', 1)
-            	    img_name_list = [img_name for x in range( len(table) )]
-            	    table = make_lists.append_table(table, 'Fname', img_name_list, np.dtype('S20')) 
+   		    	#filepath
+        	    	if 'Fname' not in colnames:
+        	    	   #print "Adding directory name"
+        	    	    img_name, _ = catpath.rsplit('/', 1)
+        	    	    img_name, _ = img_name.rsplit('/', 1)
+        	    	    _ ,img_name = img_name.rsplit('/', 1)
+        	    	    img_name_list = [img_name for x in range( len(table) )]
+        	    	    table = make_lists.append_table(table, 'Fname', img_name_list, np.dtype('S20')) 
 
 
-            	if 'Ccd_num' not in colnames:
-            	    #print "Adding ccd number"
-            	    num_list = [str(ccdnum) for x in range( len(table) )]
-            	    table = make_lists.append_table(table, 'Ccd_num', num_list, np.dtype('>f4'))
-                   
+        	    	if 'Ccd_num' not in colnames:
+        	    	    #print "Adding ccd number"
+        	    	    num_list = [str(ccdnum) for x in range( len(table) )]
+        	    	    table = make_lists.append_table(table, 'Ccd_num', num_list, np.dtype('>f4'))
+        	           
 
-		#NIGHT ZPT IS THE APASS ZEROPOINT FOR THE NIGHT -> AB MAGS
-		if 'Nightzpt' not in colnames:   
-      			nightzpt = hdr['nightzpt']         
-      	        	magzpt_list = np.full( len(table) , nightzpt)
-                	#print "Adding magnitude zeropoint"
-                	table = make_lists.append_table(table, 'Nightzpt', magzpt_list, np.dtype('>f4'))  
+			#NIGHT ZPT IS THE APASS ZEROPOINT FOR THE NIGHT -> AB MAGS
+			if 'Nightzpt' not in colnames:   
+      				nightzpt = hdr['nightzpt']         
+      		        	magzpt_list = np.full( len(table) , nightzpt)
+        	        	#print "Adding magnitude zeropoint"
+        	        	table = make_lists.append_table(table, 'Nightzpt', magzpt_list, np.dtype('>f4'))  
 
-
-	  	#Adding exposure time column
-	  	if 'Exp_time' not in colnames:
-	    		expt = hdr['exptime']
-                	expt_list = [expt for x in range( len(table) )]
-                	#print "Adding exposure time"
-                	table = make_lists.append_table(table, 'Exp_time', expt_list, np.dtype('>f4'))
+	
+		  	#Adding exposure time column
+		  	if 'Exp_time' not in colnames:
+		    		expt = hdr['exptime']
+        	        	expt_list = [expt for x in range( len(table) )]
+        	        	#print "Adding exposure time"
+        	        	table = make_lists.append_table(table, 'Exp_time', expt_list, np.dtype('>f4'))
          
                   
 
 	    
-            	#adding vega and AB magnitudes for each aperture
-            	aperture_list = [name for name in table.dtype.names if 'Aper' in name and '_err' not in name and 'mag' not in name and 'corr' not in name]
-            	for apname in aperture_list:
-            
-            		#skip apertures larger than 7
-            		_, apnum = apname.rsplit('flux_')
-             		if int(apnum) > 7 or int(apnum)<2:
-            			continue
+        	    	#adding vega and AB magnitudes for each aperture
+        	    	aperture_list = [name for name in table.dtype.names if 'Aper' in name and '_err' not in name and 'mag' not in name and 'corr' not in name]
+        	    	for apname in aperture_list:
+        	    
+        	    		#skip apertures larger than 7
+        	    		_, apnum = apname.rsplit('flux_')
+        	    		try:
+        	    			int(apnum)
+        	     			if int(apnum) > 7 or int(apnum)<2:
+        	    				continue
+        	    		except: #_upper_lim
+        	    			apnum, _ = apnum.split('_', 1)
+        	    			apnum = int(apnum)
+        	    			
 
             	          	
-            		#uncorrected AB magnitudes
-            		#NIGHTZPT IS IN APASS MAGS       
-            		#print 'Adding ', apname, 'AB magnitide'	
-            		AB_mags = [( -2.5*math.log10(line / hdr['exptime']) ) + hdr['nightzpt'] if line>0 else float('nan')  for line in table[apname]  ]
-            		if apname+'_mag_AB' not in colnames:
-          		 	table = make_lists.append_table(table, apname+'_mag_AB', AB_mags, np.dtype('>f4'))
-           	
-          				
-            		#Vega magnitudes	        	
-            		#print 'Adding vega magnitude'
-            		#convert the AB magnitudes using the calculated corrections
-	    		if filtername == 'r_r' or filtername == 'r_b': conv = r_conv
-	    		if filtername == 'i': conv = i_conv
-	    		if filtername == 'u': conv = u_conv
-	    		if filtername == 'g': conv = g_conv
-	    		if filtername == 'NB':
-	    			if ccdnum in range(0,9): #A
-	   		        	conv = NBa_conv
-	    		   	elif ccdnum in range(9,17): #D
-	   				conv = NBd_conv
-	        		elif ccdnum in range(17, 25):#B
-	        			conv = NBb_conv
-	        		elif ccdnum in range(25, 33): #C
-	        			conv = NBc_conv
+        	    		#uncorrected AB magnitudes
+        	    		#NIGHTZPT IS IN APASS MAGS       
+        	    		#print 'Adding ', apname, 'AB magnitide'	
+        	    		AB_mags = [( -2.5*math.log10(line / hdr['exptime']) ) + hdr['nightzpt'] if line>0 else float('nan')  for line in table[apname]  ]
+        	    		if apname+'_mag_AB' not in colnames:
+        	  		 	table = make_lists.append_table(table, apname+'_mag_AB', AB_mags, np.dtype('>f4'))
+
+
+        	    		#Vega magnitudes	        	
+        	    		#print 'Adding vega magnitude'
+        	    		#convert the AB magnitudes using the calculated corrections
+		    		if filtername == 'r_r' or filtername == 'r_b': conv = r_conv
+		    		if filtername == 'i': conv = i_conv
+		    		if filtername == 'u': conv = u_conv
+		    		if filtername == 'g': conv = g_conv
+		    		if filtername == 'NB':
+		    			if ccdnum in range(0,9): #A
+		   		        	conv = NBa_conv
+		    		   	elif ccdnum in range(9,17): #D
+		   				conv = NBd_conv
+		        		elif ccdnum in range(17, 25):#B
+		        			conv = NBb_conv
+		        		elif ccdnum in range(25, 33): #C
+		        			conv = NBc_conv
 	                        	
   
-	   		vega_mags = [line-conv for line in AB_mags]
-	   		if apname+'_mag' not in colnames:
-	        		table = make_lists.append_table(table, apname+'_mag', vega_mags, np.dtype('>f4'))  	
+		   		vega_mags = [line-conv for line in AB_mags]
+		   		if apname+'_mag' not in colnames:
+		        		table = make_lists.append_table(table, apname+'_mag', vega_mags, np.dtype('>f4'))  	
 
 
-			#aperture corrected AB mags for every filter except u
-			if filtername != 'u':
-
-				#find the aperture correction txt file created by calc_ap_offset.py
-        			if block_index==0: 
-	        	   		corrections_fpath = os.getcwd()+'/aperture_corrections/a_'+filtername+'_aper'+str(apnum)+'_corrections.txt'
-	        	       	elif block_index==1: 
-	        	       		corrections_fpath = os.getcwd()+'/aperture_corrections/b_'+filtername+'_aper'+str(apnum)+'_corrections.t	xt'	        
-	        	       	elif block_index==2: 
-	        	       		corrections_fpath = os.getcwd()+'/aperture_corrections/c_'+filtername+'_aper'+str(apnum)+'_corrections.txt'       		
+				#aperture corrected AB mags for every filter except u and NB
+				if filtername != 'u' and filtername!='NB':
 	
-	        	     	if not os.path.exists(corrections_fpath):
-	        	     		print 'ERROR: No aperture correction file'
-	        	     		print corrections_fpath
-	        	     		raw_input('Press any key to continue')
-	        	     		continue
+					#find the aperture correction txt file created by calc_ap_offset.py
+        				if block_index==0: 
+		        	   		corrections_fpath = os.getcwd()+'/aperture_corrections/a_'+filtername+'_aper'+str(apnum)+'_corrections.txt'
+	        	   	    	elif block_index==1: 
+	        	       			corrections_fpath = os.getcwd()+'/aperture_corrections/b_'+filtername+'_aper'+str(apnum)+'_corrections.txt'	        
+	        	       		elif block_index==2: 
+	        	       			corrections_fpath = os.getcwd()+'/aperture_corrections/c_'+filtername+'_aper'+str(apnum)+'_corrections.txt'       		
+	
+	        	     		if not os.path.exists(corrections_fpath):
+	        	     			print 'ERROR: No aperture correction file'
+	        	     			print corrections_fpath
+	        	     			raw_input('Press any key to continue')
+	        	     			continue
 	             			
 	             			
-	        	     	else:
-	        	       		#print 'Adding aperture corrected', apname, 'AB magnitide'
-	        	       		#read in the aperture corrections
-                			corrections_list = []
-               				with open(corrections_fpath) as f:
-               					for line in f:
-                					line=line.split()
-                					corrections_list.append(float(line[1]))
-                					
-                			corr_AB_mags = [line-corrections_list[ccdnum-1] for line in AB_mags]  #0 counting
-                			if apname+'_corr_AB' not in colnames:
-            					table = make_lists.append_table(table, apname+'_corr_AB', corr_AB_mags, np.dtype('>f4'))
+	        	     		else:
+	        	       			#print 'Adding aperture corrected', apname, 'AB magnitide'
+	        	       			#read in the aperture corrections
+                				corrections_list = []
+               					with open(corrections_fpath) as f:
+               						for line in f:
+                						line=line.split()
+                						corrections_list.append(float(line[1]))
+                						
+                				corr_AB_mags = [line-corrections_list[ccdnum-1] for line in AB_mags]  #0 counting	
+                				if apname+'_corr_AB' not in colnames:
+            						table = make_lists.append_table(table, apname+'_corr_AB', corr_AB_mags, np.dtype('>f4'))
 	
                 	
 	
-                			corr_vega_mags = [line-conv for line in corr_AB_mags]  #0 counting
-                			if apname+'_corr' not in colnames:		
-                		     		table = make_lists.append_table(table, apname+'_corr', corr_vega_mags, np.dtype('>f4'))
+                				corr_vega_mags = [line-conv for line in corr_AB_mags]  #0 counting
+                				if apname+'_corr' not in colnames:		
+                			     		table = make_lists.append_table(table, apname+'_corr', corr_vega_mags, np.dtype('>f4'))
                 		     	
                 	   
 
                                        	
            
-		#save changes to the table 	
-		cat[ccdnum].data = table
+			#save changes to the table 	
+			cat[ccdnum].data = table
         	cat.flush()
 
     	cat.close(output_verify='ignore')

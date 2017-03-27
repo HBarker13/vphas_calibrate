@@ -133,8 +133,7 @@ def calc_colours(table_fpath):
 	table = openfile[1].data
 	names = table.dtype.names
 	openfile.close()
-	
-	
+
 	#remove objs with errors flagged	
 	for i in range(1,6):
 		table = table[table['error_bit_flag_'+str(i)]==0]
@@ -193,15 +192,7 @@ ex_path = os.getcwd() + '/vphas_' + args.vphas_num + '_ex'
 a_block, b_block, c_block = make_lists.bandmerge_list(ex_path)
 vphas_filternames = {'u':0, 'g':1, 'r_r':2, 'r_b':3, 'i':4, 'NB':5}
 
-cat_choice=None
-while cat_choice!='c' and cat_choice!='s':
-	cat_choice = raw_input('Use complete or stellar raw catalogues? (c/s) ')
-if cat_choice=='c':
-	rawname = 'cat'
-elif cat_choice=='s':
-	rawname='stellar'
-	
-	
+
 
 ap_choice = raw_input('Choose aperture 1-13, Petr, Kron or Half (default 3) : ')
 if len(ap_choice) == 0 : ap_choice = '3' 
@@ -217,10 +208,10 @@ print
 block_choice = raw_input('Block a or b? ')
 if block_choice=='a':
 	block = a_block
-	merged_fpath = os.getcwd()+'/a_block_merged_'+rawname+'.fits'
+	merged_fpath = os.getcwd()+'/a_block_merged_cat.fits'
 elif block_choice=='b':
 	block = b_block
-	merged_fpath = os.getcwd()+'/b_block_merged_'+rawname+'.fits'
+	merged_fpath = os.getcwd()+'/b_block_merged_cat.fits'
 elif block_choice=='c': 
 	block = c_block
 print
@@ -233,9 +224,6 @@ CS = {0:[-1.598, -0.315, -0.169], 0.2:[-1.385, -0.087, -0.048], 0.4:[-1.163, 0.1
 CS_u_min_g = [CS[c][0] for c in CS]
 CS_g_min_r = [CS[c][1] for c in CS]
 CS_r_min_i = [CS[c][2] for c in CS]
-
-print 'CS u-g: ', CS_u_min_g
-print 'CS g-r: ', CS_g_min_r
 
 
 #A0 synthetic colours for MS from vphas table a2. a_0 = reddening at 5500angstroms
@@ -355,6 +343,7 @@ hist_2d(g_min_r, u_min_g, True)
 #add corrected u_mags to fits file: u_appendix calculated in def calc_colours
 openfile = fits.open(merged_fpath, mode='update')
 table = openfile[1].data
+
 u_appendix='1'
 if not ap_name+'_corr_'+u_appendix in table.dtype.names:
 	u_mags = table[ap_name+'_mag_'+u_appendix]

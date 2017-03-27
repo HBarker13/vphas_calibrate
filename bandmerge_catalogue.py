@@ -15,35 +15,26 @@ ex_path = os.getcwd() + '/vphas_' + args.vphas_num + '_ex'
 all_subdirs = [dirname for dirname in glob.glob(ex_path+'/*') if os.path.isdir(dirname)]
 match_radius = 0.45 #arcsec
 
-cat_choice=None
-while cat_choice!='c' and cat_choice!='s':
-	cat_choice = raw_input('Use complete or stellar raw catalogues? (c/s) ')
-	
-if cat_choice=='c':
-	rawname = 'cat'
-elif cat_choice=='s':
-	rawname='stellar'
-
 		
 #Need to split this list into a,b,c then merge each set of catalogues.
 a_block, b_block, c_block = make_lists.bandmerge_list(ex_path)
 
 a_catnames = []
 for dirname in a_block:
-	catname = glob.glob(dirname + '/catalogues/*' + rawname + '.fits')
+	catname = glob.glob(dirname + '/catalogues/*cat.fits')
 	if len(catname)!=0:
 		a_catnames.append(catname[0])
 
 
 b_catnames = []
 for dirname in b_block:
-	catname = glob.glob(dirname + '/catalogues/*' + rawname + '.fits')
+	catname = glob.glob(dirname + '/catalogues/*cat.fits')
 	if len(catname)!=0:
 		b_catnames.append(catname[0])
 
 c_catnames = []
 for dirname in c_block:
-	catname = glob.glob(dirname + '/catalogues/*' + rawname + '.fits')
+	catname = glob.glob(dirname + '/catalogues/*cat.fits')
 	if len(catname)!=0:
 		c_catnames.append(catname[0])
 
@@ -53,13 +44,13 @@ for dirname in c_block:
 #Had to redo into merging ccds with pair matching as couldn't fix max recusion limit with sys.setrecursionlimit() 
 #Catalogue with the most entries is used as the reference in the pair matching
 #Group matching now works: forgot to convert radians to degrees
-savename = 'a_block_merged_'+rawname+'_.fits'
+savename = 'a_block_merged_cat_.fits'
 if not os.path.exists(os.getcwd()+'/'+savename):
 	start = datetime.now()
 	print 'Merging block a '
 
 	#resave ccds as seperate files, pipe into tmatchn, delete files
-	a_merged_dirname = os.getcwd() + '/a_merged_'+rawname
+	a_merged_dirname = os.getcwd() + '/a_merged_cat'
 	if not os.path.exists(a_merged_dirname):
 		os.makedirs(a_merged_dirname)
 	
@@ -100,8 +91,8 @@ if not os.path.exists(os.getcwd()+'/'+savename):
 		
 #merge the seperate ccd merged catalogues
 print 'Merging a ccd catalogues'
-catnames = glob.glob(os.getcwd() + '/a_merged_'+rawname+'/*.fits')
-merged_fname = os.getcwd()+'/a_block_merged_'+rawname+'.fits'
+catnames = glob.glob(os.getcwd() + '/a_merged_cat/*.fits')
+merged_fname = os.getcwd()+'/a_block_merged_cat.fits'
 for ind, fname in enumerate(catnames):
 	print 'ccd ', str(ind+1)
 	if ind==0: 
@@ -121,11 +112,11 @@ for ind, fname in enumerate(catnames):
 
 
 print
-savename = 'b_block_merged_'+rawname+'_.fits'
+savename = 'b_block_merged_cat.fits'
 if not os.path.exists(os.getcwd()+'/'+savename):
 	print 'Merging block b'	
 	#resave ccds as seperate files, pipe into tmatchn, delete files
-	b_merged_dirname = os.getcwd() + '/b_merged_'+rawname
+	b_merged_dirname = os.getcwd() + '/b_merged_cat'
 	if not os.path.exists(b_merged_dirname):
 		os.makedirs(b_merged_dirname)
 	
@@ -160,8 +151,8 @@ if not os.path.exists(os.getcwd()+'/'+savename):
 
 	
 print 'Merging b ccd catalogues'
-catnames = glob.glob(os.getcwd() + '/b_merged_'+rawname+'/*.fits')
-merged_fname = os.getcwd()+'/b_block_merged_'+rawname+'.fits'
+catnames = glob.glob(os.getcwd() + '/b_merged_cat/*.fits')
+merged_fname = os.getcwd()+'/b_block_merged_cat.fits'
 for ind, fname in enumerate(catnames):
 	print 'ccd ', str(ind+1)
 	if ind==0: 
@@ -180,7 +171,7 @@ for ind, fname in enumerate(catnames):
 		t2.close()
 	
 
-savename = 'c_block_merged_'+rawname+'.fits'
+savename = 'c_block_merged_cat.fits'
 print c_catnames
 if len(c_block)==2 and not os.path.exists(os.getcwd()+'/'+savename): 
 	print 'Merging block c'	
