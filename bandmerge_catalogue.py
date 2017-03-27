@@ -44,7 +44,7 @@ for dirname in c_block:
 #Had to redo into merging ccds with pair matching as couldn't fix max recusion limit with sys.setrecursionlimit() 
 #Catalogue with the most entries is used as the reference in the pair matching
 #Group matching now works: forgot to convert radians to degrees
-savename = 'a_block_merged_cat_.fits'
+savename = 'a_block_merged_cat.fits'
 if not os.path.exists(os.getcwd()+'/'+savename):
 	start = datetime.now()
 	print 'Merging block a '
@@ -90,25 +90,26 @@ if not os.path.exists(os.getcwd()+'/'+savename):
 
 		
 #merge the seperate ccd merged catalogues
-print 'Merging a ccd catalogues'
-catnames = glob.glob(os.getcwd() + '/a_merged_cat/*.fits')
-merged_fname = os.getcwd()+'/a_block_merged_cat.fits'
-for ind, fname in enumerate(catnames):
-	print 'ccd ', str(ind+1)
-	if ind==0: 
-		shutil.copyfile(fname, merged_fname)
-	else:
-		t1 = fits.open(merged_fname)
-		t2 = fits.open(fname)
-		nrows1 = t1[1].data.shape[0]
-		nrows2 = t2[1].data.shape[0]
-		nrows = nrows1+nrows2
-		hdu = fits.BinTableHDU.from_columns(t1[1].columns, nrows=nrows)
-		for colname in t1[1].columns.names:
-			hdu.data[colname][nrows1:] = t2[1].data[colname]
-		hdu.writeto(merged_fname, clobber=True)
-		t1.close()
-		t2.close()
+if not os.path.exists(os.getcwd()+'/'+savename):
+	print 'Merging a ccd catalogues'
+	catnames = glob.glob(os.getcwd() + '/a_merged_cat/*.fits')
+	merged_fname = os.getcwd()+'/a_block_merged_cat.fits'
+	for ind, fname in enumerate(catnames):
+		print 'ccd ', str(ind+1)
+		if ind==0: 
+			shutil.copyfile(fname, merged_fname)
+		else:
+			t1 = fits.open(merged_fname)
+			t2 = fits.open(fname)
+			nrows1 = t1[1].data.shape[0]
+			nrows2 = t2[1].data.shape[0]
+			nrows = nrows1+nrows2
+			hdu = fits.BinTableHDU.from_columns(t1[1].columns, nrows=nrows)
+			for colname in t1[1].columns.names:
+				hdu.data[colname][nrows1:] = t2[1].data[colname]
+			hdu.writeto(merged_fname, clobber=True)
+			t1.close()
+			t2.close()
 
 
 print
@@ -149,26 +150,26 @@ if not os.path.exists(os.getcwd()+'/'+savename):
 	end=datetime.now()
 
 
-	
-print 'Merging b ccd catalogues'
-catnames = glob.glob(os.getcwd() + '/b_merged_cat/*.fits')
-merged_fname = os.getcwd()+'/b_block_merged_cat.fits'
-for ind, fname in enumerate(catnames):
-	print 'ccd ', str(ind+1)
-	if ind==0: 
-		shutil.copyfile(fname, merged_fname)
-	else:
-		t1 = fits.open(merged_fname)
-		t2 = fits.open(fname)
-		nrows1 = t1[1].data.shape[0]
-		nrows2 = t2[1].data.shape[0]
-		nrows = nrows1+nrows2
-		hdu = fits.BinTableHDU.from_columns(t1[1].columns, nrows=nrows)
-		for colname in t1[1].columns.names:
-			hdu.data[colname][nrows1:] = t2[1].data[colname]
-		hdu.writeto(merged_fname, clobber=True)
-		t1.close()
-		t2.close()
+if not os.path.exists(os.getcwd()+'/'+savename):
+	print 'Merging b ccd catalogues'
+	catnames = glob.glob(os.getcwd() + '/b_merged_cat/*.fits')
+	merged_fname = os.getcwd()+'/b_block_merged_cat.fits'
+	for ind, fname in enumerate(catnames):
+		print 'ccd ', str(ind+1)
+		if ind==0: 
+			shutil.copyfile(fname, merged_fname)
+		else:
+			t1 = fits.open(merged_fname)
+			t2 = fits.open(fname)
+			nrows1 = t1[1].data.shape[0]
+			nrows2 = t2[1].data.shape[0]
+			nrows = nrows1+nrows2
+			hdu = fits.BinTableHDU.from_columns(t1[1].columns, nrows=nrows)
+			for colname in t1[1].columns.names:
+				hdu.data[colname][nrows1:] = t2[1].data[colname]
+			hdu.writeto(merged_fname, clobber=True)
+			t1.close()
+			t2.close()
 	
 
 savename = 'c_block_merged_cat.fits'
