@@ -128,11 +128,8 @@ def hist_2d(x,y, savechoice):
     
     
 #calcualte stellar colours.   
-def calc_colours(table_fpath):
-	openfile = fits.open(table_fpath)
-	table = openfile[1].data
-	names = table.dtype.names
-	openfile.close()
+def calc_colours(table):
+
 
 	#remove objs with errors flagged	
 	for i in range(1,6):
@@ -215,6 +212,19 @@ elif block_choice=='b':
 elif block_choice=='c': 
 	block = c_block
 print
+
+
+openfile = fits.open(merged_fpath)
+table = openfile[1].data
+names = table.dtype.names
+openfile.close()
+
+
+#only do 1 ccd
+table = table[ table['ccd_num_1']==1]
+	
+	
+	
 
 
 #CS colours at Rv = 3.1
@@ -305,7 +315,7 @@ ms_u_min_g = [main_sequence[sp_type][2] for sp_type in main_sequence]
 ms_g_min_r = [main_sequence[sp_type][3] for sp_type in main_sequence]
     
     
-u_min_g, g_min_r = calc_colours(merged_fpath)
+u_min_g, g_min_r = calc_colours(table)
  
 colours = [[line[0], line[1]] for line in zip(g_min_r, u_min_g) if ~np.isnan(line[0]) and ~np.isnan(line[1])]
 g_min_r = [line[0] for line in colours]
@@ -325,6 +335,24 @@ while(loop):
 	shift = float(raw_input('Shift to apply to u-band: '))
 	running_val +=shift
 	u_min_g = [val+shift for val in u_min_g]
+	
+	#convert to the form vphas uses
+	#mag = -2.5* log10( counts*(1+apcor)/exp_t) +nightzpt
+	# apcor = ((exp_t * 10^ (-(mag-night_zpt)/2.5) ) / counts )-1
+	
+	import math
+	for line in table:
+		corr_mag = -2.5*math.log10( line['aper_flux_3_1']*1.050495/line['exp_time_1'] ) + line['Nightzpt_1']
+		#print corr_mag, line['aper_flux_3_mag_AB_1']
+	
+		#ap_cor = -2.5*log10( (1+shift) / exp_t )
+		apcor = -2.5*math.log10( (1+shift)/ line['exp_time_1'])
+		print apcor
+	
+		apcor = line['exp_time_1']* 10**(shift/-2.5)
+		print apcor
+	
+	
 	if running_val<0:
 		u_txtline = 'u = u - ' + str(abs(running_val))
 	else:
@@ -336,10 +364,13 @@ while(loop):
 	if exit=='q' or exit=='Q':
 		loop=False
 
-		
 hist_2d(g_min_r, u_min_g, True)
-		
 
+
+
+
+		
+"""
 #add corrected u_mags to fits file: u_appendix calculated in def calc_colours
 openfile = fits.open(merged_fpath, mode='update')
 table = openfile[1].data
@@ -407,7 +438,7 @@ with open(txt_fpath, 'a') as txtfile:
 	line = ap_choice + ' ' + str(-running_val) + ' ' + '0.01' + '\n'
 	txtfile.write(line)
 txtfile.close()
-
+"""
 
 
 

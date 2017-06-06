@@ -189,6 +189,13 @@ elif block_choice=='c':
 for filtername in filternames.keys():	
 	catpath = glob.glob(block[filternames[filtername]]+'/catalogues/*cat.fits')
 	print block[filternames[filtername]]
+	
+	if len(catpath)==0:
+		print 'No catalogue'
+		print block[filternames[filtername]]
+		raw_input('Press any key to continue')
+		continue
+		
 	catpath = catpath[0]
 	
 	#directory for apass-vphas merged catalogues

@@ -1,8 +1,8 @@
 #!/mirror/scratch/hbarker/pkgs/anaconda/bin/python
 
-#Find catalogue fits files in expath and create a fits file containing the entries of all 32 ccds
-#Adds some useful columns: filter, directory+ccd, exposure_time, nightzpt, mags
-#New files are saved in directory in expath
+#calibrate Halpha magnitudes in the bandmerged catalogue by shifting the zeropoint, so Halpha_zpt = r_zpt - 3.01
+#MOHR-SMITH SAYS 3.08
+#Do I need to do my own plot to find out?
 
 
 import os

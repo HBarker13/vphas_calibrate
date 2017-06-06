@@ -153,6 +153,9 @@ for i,filtername in enumerate(filternames):
 
 			
 			
+			#mag = -2.5* log10( counts/ exp_t ) + zpt
+			#counts =  exp_t * 10 ** ((zpt - mag)/2.5 )
+			
 			
 			#convert aperture correction to counts	
 			corrected_counts = [line[0]*10**((hdr['nightzpt']-line[1])/2.5) for line in zip(exp_t, mags)]	
@@ -162,7 +165,7 @@ for i,filtername in enumerate(filternames):
 
 			#lowest_mag = brightest ie. most counts
 			low_mag = [ ( -2.5*math.log10( (line[0]+line[1]) /line[2] ) + hdr['nightzpt'] - apcor - ap_error ) if line[0]+line[1]>0 else float('nan') for line in zip(counts, counts_err, exp_t) ]
-			highest_counts = [line[0]*10**((hdr['nightzpt']-line[1])/2.5) for line in zip(exp_t, low_mag)]
+			highest_counts = [ line[0] * 10**( (hdr['nightzpt']-line[1])/2.5 ) for line in zip(exp_t, low_mag)]
 			ap_upper_err_counts = np.subtract(highest_counts, corrected_counts)
 
 			

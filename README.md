@@ -1,7 +1,7 @@
 #----------------To calibrate a VPHAS+ pointing-----------------#
 
+Files called by the wrapper full_mosaic.py
 
-Assumes full_mosaic.py has already been done, so the files have already been downloaded and sorted_vphas.py has been run.
 
 NB. THIS ONLY CALIBRATES APERTURES 3,4,5,6,7. THIS DOES NOT CALIBRATE THE HALPHA DATA
 
@@ -24,7 +24,7 @@ NB. THIS ONLY CALIBRATES APERTURES 3,4,5,6,7. THIS DOES NOT CALIBRATE THE HALPHA
 	NB. THE USER MUST CHECK the plots created to make sure there's enough apass stars for a good calibration. However, the error comes from the standard deviation of distance from the line, so poor fits will have a larger error.
 	
 
-6. process_catalogues.py  (also known as combine_cats.py).  Loops through all the catalogue files, adding useful header information as columns to make using the bandmerged catalogue easier. Uses the txt files of aperture corrections to correct the vpahs magntiudes. An error will be flagged for some of the apertures 
+6. process_catalogues.py  (previously combine_cats.py).  Loops through all the catalogue files, adding useful header information as columns to make using the bandmerged catalogue easier. Uses the txt files of aperture corrections to correct the vpahs magntiudes. An error will be flagged for some of the apertures 
 
 7. calc_errs.py  Calculate the errors from the photon count, zeropoint and aperture correction error, and adds columns to the catalogue files
 
