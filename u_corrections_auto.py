@@ -348,8 +348,6 @@ for u_shift in u_shifts:
 index, max_sum = max(enumerate(all_hist_sum), key=operator.itemgetter(1))
 shift = u_shifts[index]
 
-for i, val in enumerate(all_hist_sum):
-	print u_shifts[i], val
 
 
 print 'Optimal u shift:', shift
