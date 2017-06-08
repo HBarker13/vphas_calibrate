@@ -7,14 +7,15 @@ choose the brightest matched apass star as the true counterpart.
 Create text file list of offsets for each aperture. These are equivalent to the apcor header values """
 
 import os
+from astropy.io import fits
 import numpy as np
 from astropy.io import fits
 from matplotlib import pyplot as plt
 import glob
 import math
 import scipy.optimize
+from datetime import datetime
 import shutil
-import itertools
 
 import make_lists
 #change font size
@@ -35,17 +36,144 @@ elif block_choice=='b': block = b_block
 elif block_choice=='c': block = c_block
 
 
-# reduced apass file
-apass = os.getcwd() +'/apass_reduced.csv'
-if not os.path.exists(apass):
-	print 'Could not find the reduced apass file:', apass
-	print 'Try reduce_apass.py'
-	sys.exit()
+#apass file
+#apass = os.getcwd() +'/apass_2.0.csv'
+apass = os.getcwd() +'/apass_2.0_norepeats.csv'
+#apass = os.getcwd() +'/apass_2.0_bestrepeats.csv'
+
+
+
+
+#############################################################################################################
+#remove any apass objects that have repeats
+if apass == os.getcwd() +'/apass_2.0_norepeats.csv' and not os.path.exists(apass):
+	print 'Removing any repeated objects in apass'
+	apass_tab = np.recfromcsv(os.getcwd() +'/apass_2.0.csv')
 	
+	#new savepath
+	new_apass = os.getcwd() +'/apass_2.0_norepeats.csv'	
+
+	#remove entries that don't have g, r and i measurments
+	titles = apass_tab.dtype.names
+	#apass_tab = apass_tab[ apass_tab['sloan_g']!='NA' ]
+	#apass_tab = apass_tab[ apass_tab['sloan_r']!='NA' ]
+	#apass_tab = apass_tab[ apass_tab['sloan_i']!='NA' ]
+	#print 'Removed incomplete entries'
+	
+
+	#remove entries with another entry within 0.0004 degrees
+	newtab = []
+	for i,line in enumerate(apass_tab):
+		nearby = [j for j,row in enumerate(apass_tab) if i!=j and abs(float(row['radeg'])-float(line['radeg']))<0.0004 and abs(float(row['decdeg'])-float(line['decdeg']))<0.0004]
+		
+		if len(nearby)==0: #no repeats
+			newtab.append(line)
+	print 'Removed repeated entries'
+
+
+	import csv
+	with open(new_apass, 'wb') as f:
+		_writer = csv.writer(f)
+		_writer.writerow(titles)
+		for line in newtab:
+			_writer.writerow(line)
+	print 'Written ', new_apass
+	print
+
+
+
+##############################################################################################################
+#remove repeated objects and keep the "best" entry
+if apass == os.getcwd() +'/apass_2.0_bestrepeats.csv' and not os.path.exists(apass):
+	print 'Choosing best repeated entries in the apass catalogue'
+	apass_tab = np.recfromcsv(os.getcwd() +'/apass_2.0.csv')
+	new_apass = os.getcwd() +'/apass_2.0_bestrepeats.csv'	
+
+	titles = apass_tab.dtype.names
+	newtab = []
+	for i,line in enumerate(apass_tab):
+		print 'line', i
+		nearby = [j for j,row in enumerate(apass_tab) if i!=j and abs(float(row['radeg'])-float(line['radeg']))<0.0004 and abs(float(row['decdeg'])-float(line['decdeg']))<0.0004]
+	
+		if len(nearby)==0:
+			newtab.append(line)
+			continue
+		
+		for j in nearby:
+			if j<i: break #stops repeats eg. 3 matched with 5 then 5 matched with 3
+			testline = apass_tab[j]
+		
+			#choose the one with the most observations
+			if line['number_of_obs']>testline['number_of_obs']:
+					newtab.append(line)
+					break
+			if testline['number_of_obs']>line['number_of_obs']:
+					newtab.append(testline)
+					break		
+				
+			#else choose the one with the fewest NAN measurments
+			line_count = 0
+			for val in line:
+				if val=='NA': line_count+=1
+				
+			testline_count = 0
+			for val in testline:
+				if val=='NA': testline_count+=1
+			
+			if line_count>testline_count:
+				newtab.append(testline)
+				break	
+				
+			if testline_count>line_count:
+				newtab.append(line)
+				break
+		
+		
+			#choose brightest V mag
+			if line['johnson_v']!='NA' and testline['johnson_v']!='NA':
+				if float(line['johnson_v'])<float(testline['johnson_v']): 
+					newtab.append(line)
+					break
+				else:
+					newtab.append(testline)
+					break
+				
+			#else choose brightest B mag
+			if line['johnson_b']!='NA' and testline['johnson_b']!='NA':
+				if float(line['johnson_b'])<float(testline['johnson_b']): 
+					newtab.append(line)
+					break
+				else:
+					newtab.append(testline)
+					break
+				
+			#else choose brightest g mag
+			if line['sloan_g']!='NA' and testline['sloan_g']!='NA':
+				if float(line['sloan_g'])<float(testline['sloan_g']): 
+					newtab.append(line)
+					break
+				else:
+					newtab.append(testline)
+					break
+
+				
+			#else throw up error and keep neither
+			#print 'Computer says no'
+			#print line
+			#print testline
+			#print
+
+
+	import csv
+	with open(new_apass, 'wb') as f:
+		_writer = csv.writer(f)	
+		_writer.writerow(titles)
+		for line in newtab:
+			_writer.writerow(line)
 	
 	
 
-
+###############################################################################################################
 
 
 #Match vphas and apass objects.
@@ -59,51 +187,37 @@ elif block_choice=='c':
 	
 	
 for filtername in filternames.keys():	
-
-
 	catpath = glob.glob(block[filternames[filtername]]+'/catalogues/*cat.fits')
 	print block[filternames[filtername]]
 	
 	if len(catpath)==0:
 		print 'No catalogue'
 		print block[filternames[filtername]]
-		#sys.exit()
 		raw_input('Press any key to continue')
 		continue
 		
-		
 	catpath = catpath[0]
-	
 	
 	#directory for apass-vphas merged catalogues
 	fits_dirname = os.getcwd()+'/'+block_choice+'_'+filtername+'_fitsfiles'
 	if not os.path.exists(fits_dirname):
 		os.makedirs(fits_dirname)
 	
-	
-	
 	for ccdnum in range(1,33):	
 	
-		
 		#merged apass+ccd filename
 		apass_ccd_name = fits_dirname+'/apass_'+block_choice+'ccd'+str(ccdnum)+'.fits'
-
 		#skip if the file already exists
 		if os.path.exists(apass_ccd_name):
 			continue
 			
 		print 'ccd ', str(ccdnum)
 		
-		
-		
-		
-		#vphas catalogue files contain the catalogues for all 32 ccds
-		#create a temporary fits file of the single ccd catalogue to pipe into topcat
+		#create a temporary fits file of the ccd catalogue to pipe into topcat
 		temp_path = catpath[:-5]+'_ccd'+str(ccdnum)+'.fits'
 	
 		if os.path.exists(temp_path):
 			os.remove(temp_path)
-			
 			
 		cat = fits.open(catpath)
 		all_hdus = []
@@ -113,32 +227,27 @@ for filtername in filternames.keys():
 		
 		table = cat[ccdnum].data
 		hdr = cat[ccdnum].header
-		saturate = hdr['saturate'] #level at which the pixels saturate
-		seeing = hdr['seeing'] #average fwhm in pixels
+		saturate = hdr['saturate']
+		seeing = hdr['seeing'] #avergae fwhm in pixels
 		cat.close()
 	
 		colnames = table.dtype.names
 		colfields = table.dtype.fields
 		
-		#only use objects flagged as stars and remove 'Blank' columns
+		#only use objects flagged as stars
 		newtable = table[table['Classification']==-1] 
 		new_cols = []
 		for name in colnames:
 			if 'Blank' in name: continue
 			col = fits.Column(name=name, format=colfields[name][0], array=newtable[name])
 			new_cols.append(col)
-			
-			
  
  		#add aperture 7 AB mags : use this to filter out bad stars
  		mags = [(-2.5*math.log10(line / hdr['exptime']) ) + hdr['nightzpt'] if line>0 else float('nan')  for line in table['Aper_flux_7'] ]
- 		
- 		#apply the vphas catalogues aperture correction
- 		#I find them consistent with the ones I calculate to ~0.001 mags
- 		mags = [line-float(hdr['APCOR7']) for line in mags] 
 
- 		#remove vphas mags brighter than 12th and fainter than 19th
- 		mags = [line if 12.<line<19.0 else float('Nan') for line in mags ]
+ 		#remove vphas mags brighter than 12 and fainter than 20
+ 		mags = [line-float(hdr['APCOR7']) for line in mags] #apcor is the vphas catalogues aperture correction
+ 		mags = [line if 12.<line<17.0 else float('Nan') for line in mags ]
  		
  			
 		mag_col = fits.Column(name='Aper_7_mag', format='D', array=mags)
@@ -150,12 +259,10 @@ for filtername in filternames.keys():
 		tbhdulist.writeto(temp_path, output_verify='silentfix')	
 			
 
-
-
-
 	
 
 		#cross-match the apass and ccd file: use a large radius and keep all matches
+		print
 		print 'Merging apass and',block_choice,'block ccd', str(ccdnum)
 		apass_match_radius = 5 #arcsec
 		os.system('java -jar /mirror/scratch/hbarker/pkgs/jystilts.jar /home/hbarker/scripts/tmatch2.py {} {} {} {} {} {} {} {} {} {} {} {} {} {}'.format(temp_path, apass, 'fits', True, 'csv', False, 'RA', 'DEC' , 'radeg', 'decdeg', apass_match_radius, '1and2', 'all', apass_ccd_name) )
@@ -165,8 +272,6 @@ for filtername in filternames.keys():
 		print 'Removing repeat apass matches and keeping the brightest vphas star'
 		matched = fits.open(apass_ccd_name, mode='update')
 		table = matched[1].data
-		
-		#sequence numbers are unique within a ccd, so use them to identify objects that need removing
 		del_seq_nums = set()
 		for line in table:
 			#find multiple matches to same apass object
@@ -181,16 +286,6 @@ for filtername in filternames.keys():
 				if repeat['Aper_7_mag']!=maxmag:
 					del_seq_nums.add(repeat['Sequence_number'])
 					
-					
-					
-		#remove apass-vphas matches that are more than 1.5 arcseconds apart
-		#This shouldn't be needed as we already match to the brightest star in vphas 
-		#ie. If there was a brighter star in the vicinity of the apass star, that would be the apass star	
-		#for line in table:
-		#	if line['Separation']>1.50:
-		#		del_seq_nums.add( line['Sequence_number'])			
-					
-					
 		for val in del_seq_nums:
 			table = table[table['Sequence_number']!=val]
 
@@ -199,9 +294,8 @@ for filtername in filternames.keys():
 		
 		
 		
-		
-		#We have an apass - vphas ccd crossmatch list containing only the best matches. Now, 
-		#objects with poor photometry are removed.
+		"""We now have an apass - vphas ccd crossmatch list containing only the best matches. Now, 
+		objects with poor photometry are removed."""
 		#remove matches if the vphas object has an error bit flag
 		table = table[table['error_bit_flag']==0]
 		
@@ -219,46 +313,33 @@ for filtername in filternames.keys():
 
 
 
+		"""cross-match the vphas ccd catalogue with the cross-matched file containing only the best apass-vphas
+		photometry. Use this to calculate the distance between a matched object and any other nearby stars. If 
+		there is a vphas star within 2x the seeing of the matched star, the matched star's vphas photometry will be
+		contaminated, and so the match is removed."""
 
-
-		#cross-match the vphas ccd catalogue with the cross-matched file containing the best apass-vphas
-		#photometry. Use this to calculate the distance between a matched object and any other nearby stars. If 
-		#there is a vphas star within 2x the seeing of the matched star, the matched star's vphas photometry will be
-		#contaminated, and so the match is removed
-		
-
+		#remove objects within the contamination distance
+		print
 		#temporary filename
 		distances = fits_dirname+'/apass_'+block_choice+'ccd'+str(ccdnum)+'_distances.fits'
 		os.system('java -jar /mirror/scratch/hbarker/pkgs/jystilts.jar /home/hbarker/scripts/tmatch2.py {} {} {} {} {} {} {} {} {} {} {} {} {} {}'.format(apass_ccd_name, temp_path, 'fits', True, 'fits', True, 'RA', 'DEC' , 'RA', 'DEC', 15, '1and2', 'all', distances))
 		
-
 		distancefile = fits.open(distances)
 		distancetab = distancefile[1].data
 		distancefile.close()
 		matched = fits.open(apass_ccd_name, mode='update')
 		table = matched[1].data
 		
-		
 		min_pixel_separation = 2 * seeing #seeing is fwhm in pixels
-		#OmegaCAM has 0.218 arcsec per pixel
-		min_separation = 0.218 * min_pixel_separation #in arcsec, as topcat separation column is in arcsec
-		
-
-		
+		min_separation = 0.218*min_pixel_separation #in arcsec, as topcat separation column is in arcsec
 		
 		#remove objects that are too close together by using the sequence numbers
-		#line['Sequence_number_1'] != line['Sequence_number_2'] means objects aren't matched to themselves
-		del_seq_nums = [line['Sequence_number_1'] for line in distancetab if line['Separation']<min_separation and line['Sequence_number_1'] != line['Sequence_number_2']  ]
-		
-		
+		del_seq_nums = [line['Sequence_number_1'] for line in distancetab if 0.1<line['Separation']<min_separation and line['Sequence_number_1'] !=line['Sequence_number_2']  ]
 		for val in del_seq_nums:
 			table = table[table['Sequence_number']!=val]
 		
-		
 		matched[1].data = table
 		matched.close()			
-		
-
 		
 
 		#clean up, removing temporary files
@@ -275,44 +356,28 @@ corrections_dir = os.getcwd()+'/aperture_corrections'
 if not os.path.exists(corrections_dir):
 	os.makedirs(corrections_dir)	
 	
-	
-	
-#store details of any ccds with no vphas-apass matches	(because of poor apass coverage)
+#store details of any ccds with no vphas-apass matches	
 no_matches = []	
-
-
-
 		
 print 'Calculating aperture corrections'
 for filtername in filternames.keys():
 	print filtername
 	
-
 	#directory containing the apass-vphas cross matched fits files
 	fits_dirname = os.getcwd()+'/'+block_choice+'_'+filtername+'_fitsfiles'
-	
-	
 	
 	for apnum in range(2,8): #loop over apertures 2 to 7
 		print 'Aperture', apnum
 		
-		
-		#skip if the aperture corrections file already exists
+		#array to store aperture corrections. intersect_list = [ [ccdnum, value], ...] to keep track of cases with no aperture correction
+		intersect_list = []
 		corrections_path = corrections_dir+'/'+block_choice+'_'+filtername+'_aper'+str(apnum)+'_corrections.txt'
 		if os.path.exists(corrections_path): 
 			continue
-		
-		
-		#array to store aperture corrections
-		#intersect_list = [ [ccdnum, value], ...] to keep track of cases with no aperture correction
-		intersect_list = []
-		
-
 			
 		#array for the error associated with the aperture correction
 		error_list = []
 		errors_path = corrections_dir+'/'+block_choice+'_'+filtername+'_aper'+str(apnum)+'_correction_errs.txt'
-
 
 
 		for ccdnum in range(1,33):
@@ -324,15 +389,12 @@ for filtername in filternames.keys():
 			hdr = cat[ccdnum].header
 			cat.close()
 
-
 			#apass - vphas crossmatched filename
 			apass_ccd_name = fits_dirname+'/apass_'+block_choice+'ccd'+str(ccdnum)+'.fits'
 			openfile = fits.open(apass_ccd_name)
 			table = openfile[1].data
 			openfile.close()
 			
-			
-			#check to see if there are no apass-vphas crossmatches
 			if len(table)==0:
 				err_line = 'Block '+ str(block_choice) + ', filter: ' + str(filtername) + ', CCD: ' + str(ccdnum) + ', Ap: ' + str(apnum) + ', no matches '
 				intersect_list.append( [ccdnum, float('nan') ] )
@@ -341,10 +403,7 @@ for filtername in filternames.keys():
 				continue
 			
 			
-			
-			#calculate vphas magntiudes from the aperture count NOTE: APASS and NIGHTZPT are in is AB
-			#Don't apply the aperture correction in the vphas header, we're calculating our own
-			# If you do want to use it: mag = -2.5 * log10( counts * (1+apcor) / exptime ) + zpt
+			#find vphas magntiudes NOTE: APASS and NIGHTZPT are in is AB
 			vphas_AB = [(-2.5*math.log10(line / hdr['exptime']) ) + hdr['nightzpt'] if line>0 else float('nan')  for line in table['Aper_flux_'+str(apnum)] ]
 
 
@@ -354,40 +413,30 @@ for filtername in filternames.keys():
 			else:
 				apass_AB = table['Sloan_'+filtername]		
 
-
-
-			#remove any nan / NA entries in vphas/apass
+				
 			vphas_apass = [[line[0],line[1]] for line in zip(vphas_AB, apass_AB) if line[1]!='NA' and ~np.isnan(line[0])]	
 			vphas_AB = [line[0] for line in vphas_apass]
 			apass_AB = [float(line[1]) for line in vphas_apass]		
 				
-				
-			#array: [difference between the apass and vphas magnitudes for the same object, apass magnitude]
+			#array: [difference between the apass and vphas magnitudes for the same object, vphas magnitude]
 			difference_vphas = [[float(line[0])-line[1], float(line[0])] for line in zip(apass_AB, vphas_AB)]
 		
-		
-		
 
-
-			
 			#plot graph including best fit line:
-			x = [line[0] for line in difference_vphas] # = apass-vphas
-			y= [line[1] for line in difference_vphas] # = apass
+			x = [line[0] for line in difference_vphas]
+			y= [line[1] for line in difference_vphas]
 			
-					
 		
-			#only use values in a very well-behaved range ie. 13< mag <16. 
-			# APASS saturates for mags <11 and becomes inaccurate >~17
-			# VPHAS is good up to ~21st mag, but the g band saturates around ~12th mag
+			#only use values in a well-behaved range ie. 13<g_vphas<16.  APASS saturates for mags <11 and becomes inaccurate >~17
+			# have to swap the x and y axes
+			newx = [line[1] for line in difference_vphas if 13<line[1]<16]
+			newy = [line[0] for line in difference_vphas if 13<line[1]<16]
+			
+			allx = [line[1] for line in difference_vphas if 13<line[1]<16]
+			ally = [line[0] for line in difference_vphas if 13<line[1]<16]
 			
 			
-			# have to swap the x and y axes to fit the best fit line
-			#newx, newy are used to fit the line of best fit
-			newx = [line[1] for line in difference_vphas if 13<line[1]<16]  # = apass
-			newy = [line[0] for line in difference_vphas if 13<line[1]<16] # = apass-vphas
-			
-			
-			#flag an error if this filtering removes all the objects in the list
+			#save an error if this filtering removes all the objects in the list
 			if len(newx)==0 or len(newy)==0:
 				print 'No suitable apass matches found for ccd', ccdnum
 				err_line = 'Block '+ str(block_choice) + ', filter: ' + str(filtername) + ', CCD: ' + str(ccdnum) + 'Ap: ' + str(apnum) + ', no matches with suitable magnitudes '
@@ -396,34 +445,18 @@ for filtername in filternames.keys():
 				no_matches.append(err_line)
 				continue
 			
-			
-			
 
-			#create function using numpy with a gradient of 0 for initial conditions
-			#init_intersect is an initial guess at the axis intercept
-			coeffs = np.polyfit(newx, newy, 0)
+			#create function using numpy with a gradient of 1.0 for initial conditions
+			coeffs = np.polyfit(newx, newy, 1)
 			polynomial = np.poly1d(coeffs)
-			init_intersect = polynomial[0]
-		
+			init_intersect = polynomial[1]
 			
-			#test plot to make sure the initial conditions look ok
-			#testy = [ init_intersect for val in newx]
-			#plt.figure()
-			#plt.plot(newx, newy, 'ro')
-			#plt.plot( newx, testy, 'ko')
-			#plt.show()
-
-			
-			intersection = None
 			repeat = True
 			while repeat==True:
 			
-				if intersection==None:
-					intersection = init_intersect
-			
-				#use scipy to calculate the optimum y-intersection value for a fixed gradient
+				#use scipy to calculate the optimum y-intersection value
 				errfunc = lambda c, y: c-y #ie. y = 0*x + c  -> y=c   ->  c-y=0
-				intersection, success = scipy.optimize.leastsq(errfunc, intersection, args=newy)
+				intersection, success = scipy.optimize.leastsq(errfunc, init_intersect, args=newy)
 				intersection = intersection[0] 
 		
 				#clip anything >3*median distance from best fit line and repeat the optimization if there are any points
@@ -445,18 +478,16 @@ for filtername in filternames.keys():
 				
 								
 				if counter==0 : repeat=False
-			
-
 				
-			#save the intersection: intersection = apass - vphas  -> apass = vphas + intersection
+				
+			#save the intersection: intersection = g_apass - g_vphas  -> g_apass = g_vphas + intersection
 			# in process_catalogues.py: g_vphas_true = g_vphas_measured - intersection
-			# so we save -1 *intersection
-			intersect_list.append([ccdnum, 0-intersection]) 
 			
-			#calculate the error on the fit as the average distance to the line of best fit
-			variance = [ (val-intersection)**2 for val in newy] 
-			st_dev =  math.sqrt( sum(variance) )
-			error = st_dev / ( len(variance) - 1 )
+			intersect_list.append([ccdnum, 0-intersection]) #to keep consistent with how I'm adjusting mags	
+			
+			#error = sd of clipped mean	
+			variances = [(val-intersection)**2 for val in newy]
+			error = np.mean(variances)
 			error_list.append([ccdnum, error])
 
 				
@@ -464,11 +495,11 @@ for filtername in filternames.keys():
 			yrange = np.linspace(11,19)
 			bestfit = [intersection for val in yrange]
 			
-			plt.plot(x,y ,'bo') #all points
-			plt.plot(newy, newx, 'ro') #points used in the fit, remembering x and y have been swapped round
-			plt.plot(bestfit, yrange, 'r-') #bestfit line
+			plt.plot(x,y ,'bo')
+			plt.plot(newy, newx, 'ro')
+			plt.plot(bestfit, yrange, 'r-')
 			plt.ylim(11, 18.0)
-			plt.gca().invert_yaxis() #flip the y axis so fainter stars at bottom of y axis
+			plt.gca().invert_yaxis() #so fainter stars at bottom of y axis
 			plt.subplots_adjust(left=None, bottom=0.13, right=None, top=None, wspace=None, hspace=None) #stop labels being clipped
 		
 					
@@ -523,6 +554,9 @@ for filtername in filternames.keys():
 	
 
 
+
+#delete working files if they're not needed 
+ 
 
 
 

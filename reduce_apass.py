@@ -12,6 +12,9 @@ import csv
 
 
 
+
+
+
 #read in the apass file (downlaoded from the apass webpage in csv format)
 apass = os.getcwd() +'/apass_2.0.csv'
 

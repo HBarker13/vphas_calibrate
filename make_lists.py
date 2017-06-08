@@ -158,6 +158,41 @@ def append_table(table, name, arr, d_type):
 
 #-------------------------------------------------------------------------------------------------------#
 
+
+
+#takes an uncollimated table and converts into recarray
+#eg. tab = [[a[1], b[1], c[1]], [a[2], b[2], c[2]]    
+#    r_array=[[a[1], a[2]], [b[1], b[2]], [c[1], c[2]] 
+def make_recarray(tab, title_list):	
+	dtype_list = ['>f4' for item in title_list]
+	str_list = ['vphas_num', 'png', 'pn_name','name', 'v_name', 'PN', 'data_release', 'sourceID', 'primaryID', 'warning_u', 'detectionID_u', 'warning_g', 'detectionID_g', 'warning_r2', 'detectionID_r2', 'warning_ha', 'detectionID_ha', 'warning_r', 'detectionID_r', 'warning_i', 'detectionID_i', 'field', 'spectype', 'Companion_SpecType_(i)', 'Lower_SpecType_(i)', 'Upper_SpecType_(i)', 'Companion SpecType (J)', 'Lower SpecType (J)', 'Upper SpecType (J)', 'Abundance', 'filtername', 'Filter_1', 'Filter_2', 'Filter_3', 'Filter_4', 'Filter_5', 'Filter_6', 'Fname_1', 'Fname_2', 'Fname_3', 'Fname_4', 'Fname_5', 'Fname_6', 'pn', 'block', 'Lum_class']
+	for ind, val in enumerate(title_list):
+		if val in str_list:
+			dtype_list[ind]='|S20'
+			
+	if str_override==True:
+		dtype_list = ['|S20' for item in title_list]
+			
+	name_dtype = [tuple(line) for line in zip(title_list, dtype_list)]
+
+	data_array = []
+	for i in range(len(title_list)):
+		col = [line[i] for line in tab]
+		data_array.append(col)
+
+	r_array = np.rec.fromarrays((data_array), dtype=name_dtype)
+	return r_array	
+
+
+
+
+
+#------------------------------------------------------------------------------------------------------#
+
+
+
+
+
 #calculate vega magnitude from counts as mag = -2.5*log10(counts/exposure_time) + nightzpt
 def calc_vega_mags(table, apname, appendix):
 	mags = [(-2.5*math.log10(line[apname+'_'+appendix] / line['Exp_time_'+appendix]) ) + line['Magzpt_'+appendix] for line in table if line[apname+'_'+appendix]>0 ]

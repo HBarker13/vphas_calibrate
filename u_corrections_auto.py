@@ -2,6 +2,8 @@
 
 #create r-v (x-axis) vs r-Halpha (y-axis) colour-colour diagram from stars. Uses bandmerged catalgoues 
 #use only the best stars ie. good photometry, magnitudes ~13 to ~19
+#calculate the u bannd magnitude shift needed to put the maximum number of stars between the MS and G0V lines
+#update catalogue magnitudes and write the shifts and errors to file
 
 
 from astropy.io import fits
@@ -40,16 +42,6 @@ a_block, b_block, c_block = make_lists.bandmerge_list(ex_path)
 vphas_filternames = {'u':0, 'g':1, 'r_r':2, 'r_b':3, 'i':4, 'NB':5}
 
 
-
-ap_choice = raw_input('Choose aperture 1-13, Petr, Kron or Half (default 3) : ')
-if len(ap_choice) == 0 : ap_choice = '3' 
-try:
-	ap_choice = int(ap_choice)
-	ap_name = 'Aper_flux_'+str(ap_choice)
-	ap_choice = str(ap_choice)
-except:
-	ap_name = ap_choice+'_flux'	
-print
 
 
 
@@ -105,6 +97,15 @@ A0_g_min_r = [A0[a][1] for a in A0]
 A0_u_min_g = [A0[a][0] for a in A0]
 A0_r_min_ha = [A0[a][3] for a in A0]
 
+
+
+#A2 synthetic colours for MS from vphas table a2. a_0 = reddening at 5500angstroms
+#A_0: u-g, g-r, r-i, r-ha
+#Rv=3.1
+A2 = { 0: [0.021, 0.025, 0.006, -0.004], 2:[0.749, 0.809, 0.432, 0.134 ], 4:[1.505, 1.568, 0.874, 0.247], 5:[2.217, 2.304, 1.251, 0.334], 8:[2.538, 3.021, 1.646, 0.397], 10:[float('nan'), float('nan'), 2.033, 0.439 ] } 
+
+A2_g_min_r = [A2[a][1] for a in A2]
+A2_u_min_g = [A2[a][0] for a in A2]
 
 
 
@@ -180,247 +181,348 @@ r_r_appendix = '3'
 r_b_appendix = '4'
 		
 
-#get corrected mags in each filter, and uncorrected u mags 
-#synthetic tracks are in vega, so use vega
-u_mags = table[ap_name+'_mag_'+u_appendix]
-#u_mags = table[ap_name+'_corr_'+u_appendix]
+
+
+#arr to store magnitude shifts
+shifts_arr = []
+
+
+
+for ap_rad in range(2,6):
+	ap_name = 'Aper_flux_'+str(ap_rad)
+
+	#synthetic tracks are in vega, so use vega
+	u_mags = table[ap_name+'_mag_'+u_appendix]
 	
-if ap_name+'_corr_'+g_appendix in names:
-	g_mags = table[ap_name+'_corr_'+g_appendix]
-else:
-	print 'No corrected g mags'
-	sys.exit()		
+	if ap_name+'_corr_'+g_appendix in names:
+		g_mags = table[ap_name+'_corr_'+g_appendix]
+	else:
+		print 'No corrected g mags'
+		sys.exit()		
 	
-if ap_name+'_corr_'+r_r_appendix in names:
-	r_r_mags = table[ap_name+'_corr_'+r_r_appendix]
-else:
-	print 'No corrected r_r mags'
-	sys.exit()	
+	if ap_name+'_corr_'+r_r_appendix in names:
+		r_r_mags = table[ap_name+'_corr_'+r_r_appendix]
+	else:
+		print 'No corrected r_r mags'
+		sys.exit()	
 
-if ap_name+'_corr_'+r_b_appendix in names:
-	r_b_mags = table[ap_name+'_corr_'+r_b_appendix]
-else:
-	print 'No corrected r_b mags'
-	sys.exit()
-
-
-#remove high/low mags
-u_mags = [line if 13<line<19 else float('nan') for line in u_mags]
-g_mags = [line if 13<line<19 else float('nan') for line in g_mags]
-#r_r_mags = [line if 13<line<19 else float('nan') for line in r_r_mags]
-r_b_mags = [line if 13<line<19 else float('nan') for line in r_b_mags]
+	if ap_name+'_corr_'+r_b_appendix in names:
+		r_b_mags = table[ap_name+'_corr_'+r_b_appendix]
+	else:
+		print 'No corrected r_b mags'
+		sys.exit()
 
 
-#calculate colours
-g_min_r = np.subtract(g_mags, r_b_mags)
-u_min_g = np.subtract(u_mags, g_mags)      
+	#remove high/low mags
+	u_mags = [line if 13<line<19 else float('nan') for line in u_mags]
+	g_mags = [line if 13<line<19 else float('nan') for line in g_mags]
+	#r_r_mags = [line if 13<line<19 else float('nan') for line in r_r_mags]
+	r_b_mags = [line if 13<line<19 else float('nan') for line in r_b_mags]
+
+
+	#calculate colours
+	g_min_r = np.subtract(g_mags, r_b_mags)
+	u_min_g = np.subtract(u_mags, g_mags)      
 
  
-colours = [[line[0], line[1]] for line in zip(g_min_r, u_min_g) if ~np.isnan(line[0]) and ~np.isnan(line[1])]
-g_min_r = [line[0] for line in colours]
-u_min_g = [line[1] for line in colours]
+	colours = [[line[0], line[1]] for line in zip(g_min_r, u_min_g) if ~np.isnan(line[0]) and ~np.isnan(line[1])]
+	g_min_r = [line[0] for line in colours]
+	u_min_g = [line[1] for line in colours]
 
 
 
 
-all_hist_sum = []
-#all the u band magnitude shifts to try
-u_shifts = np.linspace(-0.8, 0.2, 1001)
+	all_hist_sum = []
+	#all the u band magnitude shifts to try
+	u_shifts = np.linspace(-0.8, 0.2, 1001)
 
-#shift the u band magnitudes until the main body of stars lies between the G0V and MS lines
-print 'Shifting u magnitudes'
-for u_shift in u_shifts:
+	#shift the u band magnitudes until the main body of stars lies between the G0V and MS lines
+	print 'Shifting u magnitudes'
+	for u_shift in u_shifts:
 
-	#print 'Shifting by:', u_shift
-	shifted_u_min_g = [val+u_shift for val in u_min_g]
+		#print 'Shifting by:', u_shift
+		shifted_u_min_g = [val+u_shift for val in u_min_g]
 	
 	
 	
-	#testing plot to see what area of the histogram is being looked at
-	#plt.figure()
-	#plt.subplots_adjust(left=None, bottom=0.13, right=None, top=None, wspace=None, hspace=None) #stop labels being clipped
-	#plt.xlim(-0.5, 3.0)
-	#plt.ylim(-1.4, 3)
-	#plt.xlabel('g-r')
-	#plt.ylabel('u-g')
+		#testing plot to see what area of the histogram is being looked at
+		#plt.figure()
+		#plt.subplots_adjust(left=None, bottom=0.13, right=None, top=None, wspace=None, hspace=None) #stop labels being clipped
+		#plt.xlim(-0.5, 3.0)
+		#plt.ylim(-1.4, 3)
+		#plt.xlabel('g-r')
+		#plt.ylabel('u-g')
 	
+
+		#create a 2D histogram of all the stars in the pointing
+		nxbins = int(max(g_min_r)/0.017)
+		nybins = int(max(shifted_u_min_g)/0.025)
+		Hist, xedges, yedges = np.histogram2d(g_min_r , shifted_u_min_g, bins=(nybins,nxbins))
+	
+
+		#invert
+		Hist = np.rot90(Hist)
+		Hist = np.flipud(Hist)
+	
+	
+		#mask out 0 values	
+		Hist = np.where(Hist>0, Hist, float('NaN')) 
+		extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+
+					
+		#min/maximum possible colours values the main cluster of stars occupies, and how many bins on 		each axis
+		xmin = min(G0V_g_min_r)
+		xmax = 1.4
+		cut_xedges = [val for val in xedges if xmin<val<xmax]
+
+		ymin = -0.5
+		ymax = 1.0
+		cut_yedges = [val for val in yedges if ymin<val<ymax]
+
+
+      
+		#smooth G0V line
+		x = np.array(G0V_g_min_r)
+		y = np.array(G0V_u_min_g)
+		G0V_func = interpolate.interp1d(x,y)
+		G0V_xsmooth = cut_xedges
+		G0V_ysmooth = G0V_func(G0V_xsmooth)
+
+
+		#smooth ms line
+		x = np.array(ms_g_min_r)
+		y = np.array(ms_u_min_g)
+		MS_func = interpolate.interp1d(x,y)
+		MS_xsmooth = cut_xedges
+		MS_ysmooth = MS_func(MS_xsmooth)
+	
+	
+	
+	
+		#smooth G0V plot
+		#plt.plot(G0V_xsmooth, G0V_ysmooth, 'k--',)
+		#plt.annotate('G0V', xy=(2.2, 1.5))
+	        
+		#smooth ms plot
+		#plt.plot(MS_xsmooth, MS_ysmooth, 'k-')
+		#plt.annotate('MS', xy=(-0.45, 0.0))
+
+	
+
+		#sum the bin values of all the histogram bins between these two lines   
+		hist_sum = 0
+
+		#G0V_xsmooth and MS_xsmooth are identical, and have values taken from xedges
+		for i, x_pixel in enumerate(MS_xsmooth):
+	
+			#G0V is above MS on the plot, but it is inverted, so G0V has more negative u-g (y-axis) values
+			upper_y_pixel = MS_ysmooth[i]
+			lower_y_pixel = G0V_ysmooth[i]
+		
+
+			if lower_y_pixel==upper_y_pixel: continue
+	
+	
+
+			#work along each row of the histogram (the xaxis) with the same y value
+			for y_ind, (y_pixel, line) in enumerate(zip(yedges, Hist)):
+		
+	
+				#see if the y pixel is between the two lines
+				if lower_y_pixel < y_pixel < upper_y_pixel:
+		
+					#see if the xpixel is within the length of the interpolated G0V and MS 	lines
+					for x_ind, (xedge, hist_bin) in enumerate(zip(xedges, line)):
+						if x_pixel==xedge:
+
+							#check the area of the histogram being used
+							#Hist[y_ind][x_ind] = 100
+						
+							if not np.isnan(hist_bin):	
+								hist_sum+=hist_bin
+
+							
+							
+		#Hist = np.flipud(Hist)						
+		#plt.imshow(Hist, extent=extent, cmap='autumn')		
+		#invery y axis
+		#plt.gca().invert_yaxis()	
+		#plt.show()					
+							
+					
+		all_hist_sum.append( hist_sum )
+							
+
+	#choose the u_shift with the maximum hist_sum
+	index, max_sum = max(enumerate(all_hist_sum), key=operator.itemgetter(1))
+	shift = u_shifts[index]
+	print 'Optimal u shift:', shift
+	
+	
+	
+	#calculate the error as the shift where the star counts in the main locus
+	#is within 5% of the optimum value
+	
+	err_counts = max_sum*0.05
+	err_shifts = [ u_shifts[ind] for ind, count in enumerate(all_hist_sum) if max_sum-err_counts < count < max_sum+err_counts]
+
+	min_shift = shift - min(err_shifts)
+	max_shift = max(err_shifts) - shift
+	avg_shift_err = (min_shift + max_shift)	/2
+
+	
+
+
+
+
+	#make the final plot with the shifted u magnitudes to make sure it looks ok						
+	plt.figure()
+	plt.subplots_adjust(left=None, bottom=0.13, right=None, top=None, wspace=None, hspace=None) #stop labels being clipped
+
+	
+	best_u_min_g = [val+shift for val in u_min_g]
 
 	#create a 2D histogram of all the stars in the pointing
 	nxbins = int(max(g_min_r)/0.017)
-	nybins = int(max(shifted_u_min_g)/0.025)
-	Hist, xedges, yedges = np.histogram2d(g_min_r , shifted_u_min_g, bins=(nybins,nxbins))
-	
+	nybins = int(max(best_u_min_g)/0.025)
+	Hist, xedges, yedges = np.histogram2d(g_min_r , best_u_min_g, bins=(nybins,nxbins))
 
-	#invert
+
+	#invert: haven't flipup because we later flip the y axis
+	#DO NOT comment it out in the testing histogram, the pixels will be out of order. 
+	#In that histogram, flipud is used twice
 	Hist = np.rot90(Hist)
-	Hist = np.flipud(Hist)
-	
+	#Hist = np.flipud(Hist)
+
 	
 	#mask out 0 values	
 	Hist = np.where(Hist>0, Hist, float('NaN')) 
 	extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
 
-					
-	#min/maximum possible colours values the main cluster of stars occupies, and how many bins on each axis
-	xmin = min(G0V_g_min_r)
-	xmax = 1.4
-	cut_xedges = [val for val in xedges if xmin<val<xmax]
+	plt.clf()
+	plt.imshow(Hist, extent=extent, cmap='autumn')						
 
-	ymin = -0.5
-	ymax = 1.0
-	cut_yedges = [val for val in yedges if ymin<val<ymax]
+	plt.xlim(-0.5, 3.0)
+	plt.ylim(-1.4, 3)
+    
+	#invery y axis
+	plt.gca().invert_yaxis()
 
+	plt.xlabel('g-r')
+	plt.ylabel('u-g')
 
-      
-	#smooth G0V line
+	#smooth G0V plot
 	x = np.array(G0V_g_min_r)
 	y = np.array(G0V_u_min_g)
-	G0V_func = interpolate.interp1d(x,y)
-	G0V_xsmooth = cut_xedges
-	G0V_ysmooth = G0V_func(G0V_xsmooth)
+	func = interpolate.interp1d(x,y)
+	x_smooth = np.linspace(x.min(), x.max(), 300)
+	y_smooth = func(x_smooth)
+	plt.plot(x_smooth, y_smooth, 'k--',)
+	plt.annotate('G0V', xy=(2.2, 1.5))
+        
 
-
-	#smooth ms line
+	#smooth ms plot
 	x = np.array(ms_g_min_r)
 	y = np.array(ms_u_min_g)
-	MS_func = interpolate.interp1d(x,y)
-	MS_xsmooth = cut_xedges
-	MS_ysmooth = MS_func(MS_xsmooth)
-	
-	
-	
-	
-	#smooth G0V plot
-	#plt.plot(G0V_xsmooth, G0V_ysmooth, 'k--',)
-	#plt.annotate('G0V', xy=(2.2, 1.5))
-        
-	#smooth ms plot
-	#plt.plot(MS_xsmooth, MS_ysmooth, 'k-')
-	#plt.annotate('MS', xy=(-0.45, 0.0))
+	func = interpolate.interp1d(x,y)
+	x_smooth = np.linspace(x.min(), x.max(), 300)
+	y_smooth = func(x_smooth)
+	plt.plot(x_smooth, y_smooth, 'k-')
+	plt.annotate('MS', xy=(-0.45, 0.0))
 
 	
 
-	#sum the bin values of all the histogram bins between these two lines   
-	hist_sum = 0
+	#smooth A2 line
+	x = np.array(A2_g_min_r)
+	y = np.array(A2_u_min_g)
+	func = interpolate.interp1d(x,y)
+	xsmooth = np.linspace(x.min(), x.max(), 300)
+	ysmooth = func(xsmooth)
+	plt.plot(x, y, 'k--')
+ 	plt.annotate('A2V', xy=(2.2, 2.5))
+	savepath = os.getcwd()+'/'+block_choice+'_'+ap_name+'.png'
+	plt.savefig(savepath)
+	#plt.show()
 
-	#G0V_xsmooth and MS_xsmooth are identical, and have values taken from xedges
-	for i, x_pixel in enumerate(MS_xsmooth):
+
+
+	shifts_arr.append( [str(ap_rad), str(-shift), str(avg_shift_err) ] )
+
+
+
+
+#write the shifts to a file
+savepath = os.getcwd()+'/u_corrections_'+block_choice+'.txt'
+with open(savepath, 'w+') as f:
+	for line in shifts_arr:
+		f.write(line[0]+'	'+line[1]+'	'+str(line[2])+'	\n')
 	
-		#G0V is above MS on the plot, but it is inverted, so G0V has more negative u-g (y-axis) values
-		upper_y_pixel = MS_ysmooth[i]
-		lower_y_pixel = G0V_ysmooth[i]
-		
 
-		if lower_y_pixel==upper_y_pixel: continue
+
+
+
+#add corrected u_mags to fits file
+openfile = fits.open(merged_fpath, mode='update')
+table = openfile[1].data
+
+u_appendix='1'
+if not ap_name+'_corr_'+u_appendix in table.dtype.names:
+	u_mags = table[ap_name+'_mag_'+u_appendix]
+	new_u = [line + u_shift for line in u_mags]
+	table = append_table(table, ap_name+'_corr_'+u_appendix, new_u, '>f4')
+	print 'Corrected vega mags added'
+else:
+	u_mags = table[ap_name+'_mag_'+u_appendix]
+	new_u = [line + u_shift for line in u_mags]
+	table[ap_name+'_corr_'+u_appendix] = new_u
+	print 'Corrected vega mags updated'
 	
 	
-
-		#work along each row of the histogram (the xaxis) with the same y value
-		for y_ind, (y_pixel, line) in enumerate(zip(yedges, Hist)):
-		
-	
-			#see if the y pixel is between the two lines
-			if lower_y_pixel < y_pixel < upper_y_pixel:
-		
-				#see if the xpixel is within the length of the interpolated G0V and MS lines
-				for x_ind, (xedge, hist_bin) in enumerate(zip(xedges, line)):
-					if x_pixel==xedge:
-
-						#check the area of the histogram being used
-						#Hist[y_ind][x_ind] = 100
-					
-						if not np.isnan(hist_bin):	
-							hist_sum+=hist_bin
-
-							
-							
-	#Hist = np.flipud(Hist)						
-	#plt.imshow(Hist, extent=extent, cmap='autumn')		
-	#invery y axis
-	#plt.gca().invert_yaxis()	
-	#plt.show()					
-							
-					
-	all_hist_sum.append( hist_sum )
-							
-
-#choose the u_shift with the maximum hist_sum
-index, max_sum = max(enumerate(all_hist_sum), key=operator.itemgetter(1))
-shift = u_shifts[index]
+if not ap_name+'_corr_AB_'+u_appendix in table.dtype.names:
+	u_AB = table[ap_name+'_mag_AB_'+u_appendix]
+	new_AB = [line + u_shift for line in u_AB]
+	table = append_table(table, ap_name+'_corr_AB_'+u_appendix, new_u, '>f4')
+	print 'Corrected AB mags added'
+else:
+	u_AB = table[ap_name+'_mag_AB_'+u_appendix]
+	new_AB = [line + u_shift for line in u_AB]
+	table[ap_name+'_corr_AB_'+u_appendix]=new_AB
+	print 'Corrected AB mags updated'
+openfile[1].data = table
+openfile.close()
 
 
-
-print 'Optimal u shift:', shift
-
-
-
-
-
-
-
-#make the final plot with the shifted u magnitudes to make sure it looks ok						
-plt.figure()
-plt.subplots_adjust(left=None, bottom=0.13, right=None, top=None, wspace=None, hspace=None) #stop labels being clipped
-
-
-best_u_min_g = [val+shift for val in u_min_g]
-
-#create a 2D histogram of all the stars in the pointing
-nxbins = int(max(g_min_r)/0.017)
-nybins = int(max(best_u_min_g)/0.025)
-Hist, xedges, yedges = np.histogram2d(g_min_r , best_u_min_g, bins=(nybins,nxbins))
-
-
-#invert: haven't flipup because we later flip the y axis
-#DO NOT comment it out in the testing histogram, the pixels will be out of order. 
-#In that histogram, flipud is used twice
-Hist = np.rot90(Hist)
-#Hist = np.flipud(Hist)
 
 	
-#mask out 0 values	
-Hist = np.where(Hist>0, Hist, float('NaN')) 
-extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
-
-plt.clf()
-plt.imshow(Hist, extent=extent, cmap='autumn')						
-
-plt.xlim(-0.5, 3.0)
-plt.ylim(-1.4, 3)
-    
-#invery y axis
-plt.gca().invert_yaxis()
-
-plt.xlabel('g-r')
-plt.ylabel('u-g')
-
-#smooth G0V plot
-x = np.array(G0V_g_min_r)
-y = np.array(G0V_u_min_g)
-func = interpolate.interp1d(x,y)
-x_smooth = np.linspace(x.min(), x.max(), 300)
-y_smooth = func(x_smooth)
-plt.plot(x_smooth, y_smooth, 'k--',)
-plt.annotate('G0V', xy=(2.2, 1.5))
-        
-
-#smooth ms plot
-x = np.array(ms_g_min_r)
-y = np.array(ms_u_min_g)
-func = interpolate.interp1d(x,y)
-x_smooth = np.linspace(x.min(), x.max(), 300)
-y_smooth = func(x_smooth)
-plt.plot(x_smooth, y_smooth, 'k-')
-plt.annotate('MS', xy=(-0.45, 0.0))
-
-
-plt.show()
-
-
-
-print 'Done'
-
-
+catpath = glob.glob(block[0]+'/catalogues/*_cat.fits',)
+openfile = fits.open(catpath[0], mode='update')
+print catpath[0]
+for ccdnum in range(1,33):
+	print 'ccd', str(ccdnum)
+	table = openfile[ccdnum].data
+	if not ap_name+'_corr' in table.dtype.names:
+		u_mags = table[ap_name+'_mag']
+		new_u = [line + u_shift for line in u_mags]
+		table = append_table(table, ap_name+'_corr', new_u, '>f4')
+		print 'Corrected vega mags added'
+	else:
+		u_mags = table[ap_name+'_mag']
+		new_u = [line + u_shift for line in u_mags]
+		table[ap_name+'_corr']=new_u
+		print 'Corrected vega mags updated'
+	
+	if not ap_name+'_corr_AB' in table.dtype.names:
+		u_AB = table[ap_name+'_mag_AB']
+		new_AB = [line + u_shift for line in u_AB]
+		table = append_table(table, ap_name+'_corr_AB', new_u, '>f4')
+		print 'Corrected AB mags added'
+	else:
+		u_AB = table[ap_name+'_mag_AB']
+		new_AB = [line + u_shift for line in u_AB]
+		table[ap_name+'_corr_AB']=new_AB
+		print 'Corrected AB mags updated'
+	openfile[ccdnum].data = table
+openfile.close()
 
 
 
