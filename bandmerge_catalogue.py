@@ -10,6 +10,10 @@ import operator
 from datetime import datetime
 import make_lists
 
+
+
+
+
 args = make_lists.get_vphas_num()
 ex_path = os.getcwd() + '/vphas_' + args.vphas_num + '_ex'
 all_subdirs = [dirname for dirname in glob.glob(ex_path+'/*') if os.path.isdir(dirname)]

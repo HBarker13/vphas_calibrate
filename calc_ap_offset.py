@@ -14,6 +14,7 @@ import glob
 import math
 import scipy.optimize
 import shutil
+import argparse
 import itertools
 
 import make_lists
@@ -24,16 +25,19 @@ matplotlib.rcParams.update({'font.size': 25})
 
 
 		
+parser = argparse.ArgumentParser(description="Collect calibration inputs")
+parser.add_argument('-v','--vphas_num', help="vphas pointing number", required=True)
+parser.add_argument('-b','--block', help="vphas offset block", required=True)
+args = parser.parse_args()
 
-args = make_lists.get_vphas_num()
 ex_path = os.getcwd()+'/vphas_'+args.vphas_num+'_ex'
 a_block, b_block, c_block = make_lists.bandmerge_list(ex_path)
 
-block_choice = raw_input('Choose block (a, b, c) : ')
+#block_choice = raw_input('Choose block (a, b, c) : ')
+block_choice = args.block
 if block_choice=='a': block = a_block
 elif block_choice=='b': block = b_block
 elif block_choice=='c': block = c_block
-
 
 # reduced apass file
 apass = os.getcwd() +'/apass_reduced.csv'
@@ -41,8 +45,6 @@ if not os.path.exists(apass):
 	print 'Could not find the reduced apass file:', apass
 	print 'Try reduce_apass.py'
 	sys.exit()
-	
-	
 	
 
 
@@ -77,6 +79,7 @@ for filtername in filternames.keys():
 	
 	#directory for apass-vphas merged catalogues
 	fits_dirname = os.getcwd()+'/'+block_choice+'_'+filtername+'_fitsfiles'
+	print fits_dirname
 	if not os.path.exists(fits_dirname):
 		os.makedirs(fits_dirname)
 	

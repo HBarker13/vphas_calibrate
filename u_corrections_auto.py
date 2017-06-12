@@ -33,10 +33,11 @@ def append_table(table, name, arr, d_type):
     return newtable
 
     
+parser = argparse.ArgumentParser(description="Collect calibration inputs")
+parser.add_argument('-v','--vphas_num', help="vphas pointing number", required=True)
+parser.add_argument('-b','--block', help="vphas offset block", required=True)
+args = parser.parse_args()
 
-        
-
-args = make_lists.get_vphas_num()
 ex_path = os.getcwd() + '/vphas_' + args.vphas_num + '_ex'
 a_block, b_block, c_block = make_lists.bandmerge_list(ex_path)
 vphas_filternames = {'u':0, 'g':1, 'r_r':2, 'r_b':3, 'i':4, 'NB':5}
@@ -45,7 +46,8 @@ vphas_filternames = {'u':0, 'g':1, 'r_r':2, 'r_b':3, 'i':4, 'NB':5}
 
 
 
-block_choice = raw_input('Block a or b? ')
+#block_choice = raw_input('Block a or b? ')
+block_choice = args.block
 if block_choice=='a':
 	block = a_block
 	merged_fpath = os.getcwd()+'/a_block_merged_cat.fits'

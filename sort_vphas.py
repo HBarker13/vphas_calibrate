@@ -73,7 +73,7 @@ print "File list read in"
 for x in range(0, len(filelist), 4):
 
 	filegroup = filelist[x: x+4]
-	
+
 	#check the filenames to make sure they're in the expected order
 	if 'single' not in filegroup[0]:
 		print 'Filelist is not in the expected order'
@@ -98,20 +98,42 @@ for x in range(0, len(filelist), 4):
 
 	#open the single file to see if it is in A, B, or C block
 	#and get the filtername
-	open_single = fits.open( vphas_dir + '/' + filegroup[2] )
+	open_single = fits.open( vphas_dir + '/' + filegroup[0] )
 	block_num = open_single[0].header['HIERARCH ESO TPL EXPNO']
-	filtername = open_single[0].header['HIERARCH ESO INS FILT1 NAME']
+	
+	#from Geert's email
+	#hh => red concat, h-alpha
+	#hr => red concat, r
+	#hi => red concat, i
+
+	#uu => blue concat, u
+	#ug => blue concat, g
+	#ur => blue concat, r
+	
+	
+	filterlabel = open_single[0].header['HIERARCH ESO OBS NAME']
+	_, filterlabel = filterlabel.rsplit('_', 1)
+	
+	if filterlabel[:2] == 'hr': filtername = 'r'
+	elif filterlabel[:2] == 'ur': filtername = 'r2'	
+	elif filterlabel[:2] == 'uu': filtername = 'u'
+	elif filterlabel[:2] == 'ug': filtername = 'g'
+	elif filterlabel[:2] == 'g': filtername = 'g'
+	elif filterlabel[:2] == 'hi': filtername = 'i'
+	elif filterlabel[:2] == 'hh': filtername = 'NB'
+	else:
+		print 'Error finding filter name'
+		print filegroup[0]
+		print open_single[0].header['HIERARCH ESO OBS NAME']
+		raw_input('Press any key to continue')
+		
+
 	open_single.close()
 	
 	if block_num==1: block = 'a'
 	elif block_num==2: block = 'b'
 	elif block_num==3: block = 'c'
 	
-	
-	if 'SDSS' in filtername: 
-		filtername = filtername.strip('_SDSS')
-	else:
-		filtername = 'NB'
 	
 
 	
@@ -127,7 +149,7 @@ for x in range(0, len(filelist), 4):
 		newname = root_dir + '/' + fname
 		shutil.copyfile(oldname, newname)
 		print 'Copied', newname
-	
+	print
 
 print
 print "File sorting complete"

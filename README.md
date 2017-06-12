@@ -1,6 +1,5 @@
 #----------------To calibrate a VPHAS+ pointing-----------------#
 
-Files called by the wrapper full_mosaic.py
 
 
 NB. This only calibrates apertures 3,4,5,6,7, and does not calibrate Halpha data. It assumes a complete data set has been downloaded from CASU. ie. There are 2 u, r, r2, i and 3 g and NB exposures. 
@@ -51,3 +50,5 @@ Results are written to file and calibrated u band magnitudes added to catalogues
 
 10. Run calc_errs.py to calculate the total error (photon count and aperture correction errors). Created columns containing the upper and lower magnitude limits on a measurment.
 
+
+11. Run bandmerge again to get catalogues with errors
