@@ -44,7 +44,7 @@ for dirname in c_block:
 
 
 
-#match using tmatchn.py. Cols are in order u,g,r_r,r_b,i,NB
+#match using tmatchn.py. Cols are in order u,g,r,r2,i,NB
 #Had to redo into merging ccds with pair matching as couldn't fix max recusion limit with sys.setrecursionlimit() 
 #Catalogue with the most entries is used as the reference in the pair matching
 #Group matching now works: forgot to convert radians to degrees

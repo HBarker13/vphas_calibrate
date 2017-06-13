@@ -101,6 +101,12 @@ for x in range(0, len(filelist), 4):
 	open_single = fits.open( vphas_dir + '/' + filegroup[0] )
 	block_num = open_single[0].header['HIERARCH ESO TPL EXPNO']
 	
+	
+	if block_num==1: block = 'a'
+	elif block_num==2: block = 'b'
+	elif block_num==3: block = 'c'
+	
+	
 	#from Geert's email
 	#hh => red concat, h-alpha
 	#hr => red concat, r
@@ -130,9 +136,6 @@ for x in range(0, len(filelist), 4):
 
 	open_single.close()
 	
-	if block_num==1: block = 'a'
-	elif block_num==2: block = 'b'
-	elif block_num==3: block = 'c'
 	
 	
 
@@ -147,8 +150,10 @@ for x in range(0, len(filelist), 4):
 	
 		oldname = vphas_dir + '/' + fname
 		newname = root_dir + '/' + fname
-		shutil.copyfile(oldname, newname)
-		print 'Copied', newname
+		
+		if not os.path.exists(newname):
+			shutil.copyfile(oldname, newname)
+			print 'Copied', newname
 	print
 
 print

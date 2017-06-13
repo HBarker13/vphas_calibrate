@@ -54,7 +54,7 @@ elif block_choice=='c': block = c_block
 
 
 if block_choice=='a' or block_choice=='b':
-	filternames = {'u':0, 'g':1,'r_r':2,'r_b':3,'i':4, 'NB':5}
+	filternames = {'u':0, 'g':1,'r':2,'r2':3,'i':4, 'NB':5}
 elif block_choice=='c':
 	filternames = {'g':1}
 	
@@ -172,9 +172,9 @@ for i,filtername in enumerate(filternames):
 				zpt = [ line['Nightzpt'] - u_conv for line in table]
 			if filtername=='g':
 				zpt = [ line['Nightzpt'] - g_conv for line in table]
-			if filtername=='r_r':
+			if filtername=='r':
 				zpt = [ line['Nightzpt'] - r_conv for line in table]
-			if filtername=='r_b':
+			if filtername=='r2':
 				zpt = [ line['Nightzpt'] - r_conv for line in table]
 			if filtername=='i':
 				zpt = [ line['Nightzpt'] - i_conv for line in table]
@@ -220,7 +220,7 @@ for i,filtername in enumerate(filternames):
 
 
 			#these upper and lower limits are in AB magnitudes. Need to convert to vega
-			if filtername == 'r_r' or filtername == 'r_b': conv = r_conv
+			if filtername == 'r' or filtername == 'r2': conv = r_conv
 	            	if filtername == 'i': conv = i_conv
 	                if filtername == 'u': conv = u_conv
 	                if filtername == 'g': conv = g_conv

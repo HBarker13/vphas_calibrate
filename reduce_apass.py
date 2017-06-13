@@ -16,7 +16,7 @@ import csv
 
 
 #read in the apass file (downlaoded from the apass webpage in csv format)
-apass = os.getcwd() +'/apass_2.0.csv'
+apass = os.getcwd() +'/apass.csv' 
 
 
 #name of the new file to save to

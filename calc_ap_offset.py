@@ -16,6 +16,7 @@ import scipy.optimize
 import shutil
 import argparse
 import itertools
+import sys
 
 import make_lists
 #change font size
@@ -30,8 +31,10 @@ parser.add_argument('-v','--vphas_num', help="vphas pointing number", required=T
 parser.add_argument('-b','--block', help="vphas offset block", required=True)
 args = parser.parse_args()
 
+
 ex_path = os.getcwd()+'/vphas_'+args.vphas_num+'_ex'
 a_block, b_block, c_block = make_lists.bandmerge_list(ex_path)
+
 
 #block_choice = raw_input('Choose block (a, b, c) : ')
 block_choice = args.block
@@ -48,14 +51,12 @@ if not os.path.exists(apass):
 	
 
 
-
-
 #Match vphas and apass objects.
 #use topcat to match the apass to vphas ccd stars and save the resultant table
 #Use magnitude using aperture 7 to remove bad stars
 
 if block_choice=='a' or block_choice=='b':
-	filternames = {'g':1, 'r_r':2, 'r_b':3, 'i':4}
+	filternames = {'g':1, 'r':2, 'r2':3, 'i':4}
 elif block_choice=='c':
 	filternames = {'g':1}
 	
@@ -64,7 +65,6 @@ for filtername in filternames.keys():
 
 
 	catpath = glob.glob(block[filternames[filtername]]+'/catalogues/*cat.fits')
-	print block[filternames[filtername]]
 	
 	if len(catpath)==0:
 		print 'No catalogue'
@@ -75,8 +75,7 @@ for filtername in filternames.keys():
 		
 		
 	catpath = catpath[0]
-	
-	
+
 	#directory for apass-vphas merged catalogues
 	fits_dirname = os.getcwd()+'/'+block_choice+'_'+filtername+'_fitsfiles'
 	print fits_dirname
@@ -87,7 +86,7 @@ for filtername in filternames.keys():
 	
 	for ccdnum in range(1,33):	
 	
-		
+	
 		#merged apass+ccd filename
 		apass_ccd_name = fits_dirname+'/apass_'+block_choice+'ccd'+str(ccdnum)+'.fits'
 
@@ -134,14 +133,14 @@ for filtername in filternames.keys():
 			
  
  		#add aperture 7 AB mags : use this to filter out bad stars
- 		mags = [(-2.5*math.log10(line / hdr['exptime']) ) + hdr['nightzpt'] if line>0 else float('nan')  for line in table['Aper_flux_7'] ]
+ 		mags = [( -2.5*math.log10(line / hdr['exptime'] ) ) + hdr['nightzpt'] if line>0 else float('nan')  for line in table['Aper_flux_7'] ]
  		
  		#apply the vphas catalogues aperture correction
  		#I find them consistent with the ones I calculate to ~0.001 mags
- 		mags = [line-float(hdr['APCOR7']) for line in mags] 
+ 		#mags = [line-float(hdr['APCOR7']) for line in mags] 
 
- 		#remove vphas mags brighter than 12th and fainter than 19th
- 		mags = [line if 12.<line<19.0 else float('Nan') for line in mags ]
+ 		#remove vphas mags brighter than 13th and fainter than 19th
+ 		mags = [line if 13.<line<17.0 else float('Nan') for line in mags ]
  		
  			
 		mag_col = fits.Column(name='Aper_7_mag', format='D', array=mags)
@@ -189,9 +188,9 @@ for filtername in filternames.keys():
 		#remove apass-vphas matches that are more than 1.5 arcseconds apart
 		#This shouldn't be needed as we already match to the brightest star in vphas 
 		#ie. If there was a brighter star in the vicinity of the apass star, that would be the apass star	
-		#for line in table:
-		#	if line['Separation']>1.50:
-		#		del_seq_nums.add( line['Sequence_number'])			
+		for line in table:
+			if line['Separation']>1.5:
+				del_seq_nums.add( line['Sequence_number'])			
 					
 					
 		for val in del_seq_nums:
@@ -289,7 +288,6 @@ no_matches = []
 print 'Calculating aperture corrections'
 for filtername in filternames.keys():
 	print filtername
-	
 
 	#directory containing the apass-vphas cross matched fits files
 	fits_dirname = os.getcwd()+'/'+block_choice+'_'+filtername+'_fitsfiles'
@@ -348,11 +346,12 @@ for filtername in filternames.keys():
 			#calculate vphas magntiudes from the aperture count NOTE: APASS and NIGHTZPT are in is AB
 			#Don't apply the aperture correction in the vphas header, we're calculating our own
 			# If you do want to use it: mag = -2.5 * log10( counts * (1+apcor) / exptime ) + zpt
-			vphas_AB = [(-2.5*math.log10(line / hdr['exptime']) ) + hdr['nightzpt'] if line>0 else float('nan')  for line in table['Aper_flux_'+str(apnum)] ]
+			vphas_AB = [ ( -2.5 * math.log10( line / hdr['exptime'] ) ) + hdr['nightzpt'] if line>0 else float('nan')  for line in table['Aper_flux_'+str(apnum)] ]
+
 
 
 			#apass mags
-			if filtername=='r_r' or filtername=='r_b':
+			if filtername=='r2':
 				apass_AB = table['Sloan_r']
 			else:
 				apass_AB = table['Sloan_'+filtername]		
@@ -386,8 +385,8 @@ for filtername in filternames.keys():
 			
 			# have to swap the x and y axes to fit the best fit line
 			#newx, newy are used to fit the line of best fit
-			newx = [line[1] for line in difference_vphas if 13<line[1]<16]  # = apass
-			newy = [line[0] for line in difference_vphas if 13<line[1]<16] # = apass-vphas
+			newx = [line[1] for line in difference_vphas if 13<line[1]<17]  # = apass
+			newy = [line[0] for line in difference_vphas if 13<line[1]<17] # = apass-vphas
 			
 			
 			#flag an error if this filtering removes all the objects in the list

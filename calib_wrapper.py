@@ -42,11 +42,11 @@ print 'Processing catalogues'
 os.system("process_catalogues.py -v %s" %vphas_num)
 print
 print 'Bandmerging'
-os.system("extract_ccds.py -v %s" %vphas_num)
+os.system("bandmerge_catalogue.py -v %s" %vphas_num)
 print
 print 'Correcting u band magnitudes'
-os.system("u_correct_auto.py -v %s -b a" %vphas_num )	
-os.system("u_correct_auto.py -v %s -b b" %vphas_num )
+os.system("u_corrections_auto.py -v %s -b a" %vphas_num )	
+os.system("u_corrections_auto.py -v %s -b b" %vphas_num )
 print 
 print 'Calculating errors'
 os.system("calc_errs.py -v %s -b a" %vphas_num )	
@@ -60,7 +60,7 @@ bandmerge_names = glob.glob(os.getcwd()+'/*_block_merged_cat.fits')
 for name in bandmerge_names:
 	os.remove(name)
 print 'Bandmerging'
-os.system("extract_ccds.py -v %s" %vphas_num)
+os.system("bandmerge_catalogue.py -v %s" %vphas_num)
 print
 
 

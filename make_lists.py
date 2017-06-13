@@ -233,14 +233,28 @@ def bandmerge_list_old(ex_path):
 #--------------------------------------------------------------------------------------------------------------
 
 #creates lists of the a,b and c pointings in one vphas directory. Returns in order u,g,r_r,r_b,i,NB
+#NOTE: other scrpts rely on the paths being returned in this order
 def bandmerge_list(ex_path):
 
-	a_block = []
-	b_block = []
-	c_block = []
+	a_u = None
+	a_g = None
+	a_r = None
+	a_r2 = None
+	a_i = None
+	a_NB = None
 	
+	b_u = None
+	b_g = None
+	b_r = None
+	b_r2 = None
+	b_i = None
+	b_NB = None
 	
-	
+	c_g = None
+	c_NB = None
+
+
+
 	#list of all the u, g, r, i, and NB sorted directories
 	dirs = [dirpath for dirpath in glob.glob(ex_path+'/*') if os.path.isdir(dirpath) and 'trimmed' not in dirpath and 'Halpha' not in dirpath]
 	
@@ -248,36 +262,90 @@ def bandmerge_list(ex_path):
 		_, dirname = dirpath.rsplit('/', 1)
 		
 		#dirname has the form: filtername_date_block
-		filtername, _, block = dirname.split('_')
+		filtername, _, _, block = dirname.split('_')
+		
 		
 		if block=='a': 
-			a_block.append(dirpath)
+			if filtername == 'u':
+				a_u = dirpath
+			if filtername == 'g':
+				a_g = dirpath 
+			if filtername == 'r':
+				a_r = dirpath 
+			if filtername == 'r2':
+				a_r2 = dirpath 
+			if filtername == 'i':
+				a_i = dirpath 
+			if filtername == 'NB':
+				a_NB = dirpath 
+
 		elif block=='b':
-			b_block.append(dirpath)
+			if filtername == 'u':
+				b_u = dirpath
+			if filtername == 'g':
+				b_g = dirpath 
+			if filtername == 'r':
+				b_r = dirpath 
+			if filtername == 'r2':
+				b_r2 = dirpath 
+			if filtername == 'i':
+				b_i = dirpath 
+			if filtername == 'NB':
+				b_NB = dirpath 
+
+
 		elif block=='c':
-			c_block.append(dirpath)
+			if filtername =='g':
+				c_g = dirpath
+			if filtername =='NB':
+				c_NB = dirpath
+		
 			
-	#expected_filters = ['u', 'g', 'r', 'r2', 'i'] 		
-	if len(a_block) != 6:
-		print 'a block is incomplete'
-		for line in a_block:
-			print line
+	a_block = [a_u, a_g, a_r, a_r2, a_i, a_NB] 
+	b_block = [b_u, b_g, b_r, b_r2, b_i, b_NB]
+	c_block = [c_g, c_NB]		
+			
+			
+	for val in a_block:
+		if val==None:
+			print 'a block is incomplete'
+			for line in a_block:
+				print line
 			raw_input('Press any key to continue')
 			
-	if len(b_block) != 6:
-		print 'b block is incomplete'
-		for line in b_block:
-			print line
+	for val in b_block:
+		if val==None:
+			print 'b block is incomplete'
+			for line in b_block:
+				print line
 			raw_input('Press any key to continue')
-			
-	#expecting g and NB			
-	if len(b_block) != 2:
-		print 'c block is incomplete'
-		for line in c_block:
-			print line
+
+	for val in c_block:
+		if val==None:
+			print 'c block is incomplete'
+			for line in c_block:
+				print line
 			raw_input('Press any key to continue')
+
+	
 			
 	return a_block, b_block, c_block
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 	
 	

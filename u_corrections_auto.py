@@ -10,11 +10,14 @@ from astropy.io import fits
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from astropy.io import fits
 import glob
 import sys
 from scipy import interpolate
 import operator
+import argparse
+from scipy.optimize import curve_fit
+import math
+
 
 import make_lists
 #change font size
@@ -40,7 +43,7 @@ args = parser.parse_args()
 
 ex_path = os.getcwd() + '/vphas_' + args.vphas_num + '_ex'
 a_block, b_block, c_block = make_lists.bandmerge_list(ex_path)
-vphas_filternames = {'u':0, 'g':1, 'r_r':2, 'r_b':3, 'i':4, 'NB':5}
+vphas_filternames = {'u':0, 'g':1, 'r':2, 'r2':3, 'i':4, 'NB':5}
 
 
 
@@ -179,8 +182,8 @@ for i in range(1,6):
 	
 u_appendix ='1'		
 g_appendix ='2'
-r_r_appendix = '3'
-r_b_appendix = '4'
+r_appendix = '3'
+r2_appendix = '4'
 		
 
 
@@ -192,6 +195,7 @@ shifts_arr = []
 
 for ap_rad in range(2,6):
 	ap_name = 'Aper_flux_'+str(ap_rad)
+	print ap_name
 
 	#synthetic tracks are in vega, so use vega
 	u_mags = table[ap_name+'_mag_'+u_appendix]
@@ -202,28 +206,28 @@ for ap_rad in range(2,6):
 		print 'No corrected g mags'
 		sys.exit()		
 	
-	if ap_name+'_corr_'+r_r_appendix in names:
-		r_r_mags = table[ap_name+'_corr_'+r_r_appendix]
+	if ap_name+'_corr_'+r_appendix in names:
+		r_mags = table[ap_name+'_corr_'+r_appendix]
 	else:
-		print 'No corrected r_r mags'
+		print 'No corrected r mags'
 		sys.exit()	
 
-	if ap_name+'_corr_'+r_b_appendix in names:
-		r_b_mags = table[ap_name+'_corr_'+r_b_appendix]
+	if ap_name+'_corr_'+r2_appendix in names:
+		r2_mags = table[ap_name+'_corr_'+r2_appendix]
 	else:
-		print 'No corrected r_b mags'
+		print 'No corrected r2 mags'
 		sys.exit()
 
 
 	#remove high/low mags
 	u_mags = [line if 13<line<19 else float('nan') for line in u_mags]
 	g_mags = [line if 13<line<19 else float('nan') for line in g_mags]
-	#r_r_mags = [line if 13<line<19 else float('nan') for line in r_r_mags]
-	r_b_mags = [line if 13<line<19 else float('nan') for line in r_b_mags]
+	#r_mags = [line if 13<line<19 else float('nan') for line in r_mags]
+	r2_mags = [line if 13<line<19 else float('nan') for line in r2_mags]
 
 
 	#calculate colours
-	g_min_r = np.subtract(g_mags, r_b_mags)
+	g_min_r = np.subtract(g_mags, r2_mags)
 	u_min_g = np.subtract(u_mags, g_mags)      
 
  
@@ -235,8 +239,10 @@ for ap_rad in range(2,6):
 
 
 	all_hist_sum = []
-	#all the u band magnitude shifts to try
-	u_shifts = np.linspace(-0.8, 0.2, 1001)
+	#all the u band magnitude shifts to try.
+	#NB This is a large range because the count number is used to plot a gaussian, from which the optimal
+	# u band shift and error are calculated
+	u_shifts = np.linspace(-1.0, 0.2, 1201)
 
 	#shift the u band magnitudes until the main body of stars lies between the G0V and MS lines
 	print 'Shifting u magnitudes'
@@ -244,8 +250,7 @@ for ap_rad in range(2,6):
 
 		#print 'Shifting by:', u_shift
 		shifted_u_min_g = [val+u_shift for val in u_min_g]
-	
-	
+		
 	
 		#testing plot to see what area of the histogram is being looked at
 		#plt.figure()
@@ -355,24 +360,105 @@ for ap_rad in range(2,6):
 		all_hist_sum.append( hist_sum )
 							
 
-	#choose the u_shift with the maximum hist_sum
+	#choose the u_shift with the maximum hist_sum. This is the initial guess
+	#of the mean of the gaussian
 	index, max_sum = max(enumerate(all_hist_sum), key=operator.itemgetter(1))
 	shift = u_shifts[index]
-	print 'Optimal u shift:', shift
 	
 	
+		
+	#fit a Gaussian to the shift vs counts to estimate the optimal shift and error
+	print 'Fitting gaussian'
+	def gaus(x,a,x0,sigma):
+		g = [ a  * math.exp( -( val -x0)**2 / (2*sigma**2) )	for val in x]   
+		return g 		
 	
-	#calculate the error as the shift where the star counts in the main locus
-	#is within 5% of the optimum value
 	
-	err_counts = max_sum*0.05
-	err_shifts = [ u_shifts[ind] for ind, count in enumerate(all_hist_sum) if max_sum-err_counts < count < max_sum+err_counts]
+	x = u_shifts
+	y = all_hist_sum
+	
+	#The wings of the plot aren't very gaussian, so x axis values will have to be removed
+	#if index corresponding to the u shift is to the right of the centre
+	#Remove the edge values of the array so there is an equal number of points either side of the peak
+	if len(u_shifts)-index < index:
+		half_len = len(u_shifts)-index
+	else:
+		half_len = index
+		
 
-	min_shift = shift - min(err_shifts)
-	max_shift = max(err_shifts) - shift
-	avg_shift_err = (min_shift + max_shift)	/2
+	x = [ val for i,val in enumerate(x) if i in range( index-half_len, index+half_len) ]
+	y = [ val for i,val in enumerate(y) if i in range( index-half_len, index+half_len) ]
+		
+
+	#Remove values from the beginning and end of the array until the best Gaussian fit is found
+	#The loop stops when the "chi-squared" between the actual points and the fit Gaussian is minimised
+	#Here, chi = chi_squared / len(x) . Just using chi-squared, all the points will be removed - we 
+	#still want something gaussian-ish to fit to
+	prev_chi = None
+	prev_popt = None
+	gaussian_loop = True
+	while gaussian_loop == True:
+	
+		#remove the first and last values
+		x = x[1:-1]
+		y = y[1:-1]
+		
+		if len(x)<20:
+			print 'Gaussian fit did not converge'
+			raw_input('')
+	
+		mean = shift
+		#mean = sum(x*y)/ sum(y)
+		sigma = math.sqrt( sum( y*(x-mean)**2 ) / sum(y) )
+	
+		#p0 = [ a, mean, sigma ] where a is the Gaussian vertical scaling, and the mean is the centre of the distribution
+		#already calculated to be approximately equal to the u shift that maximises the number of counts  
+		popt,pcov = curve_fit(gaus,x,y,p0=[max(y), shift, sigma])
+		gaus_fit = gaus(x, *popt)
+
+		
+		#calculate the "chi-squared" between the actual values and the fit to see if the loop
+		#needs to continue
+	
+		from scipy.stats import chisquare
+		chisq = chisquare(y, gaus_fit)
+		chi = chisq[0]/len(x)
+
+		
+		if prev_chi == None:
+			prev_chi = chi
+			prev_popt = popt
+			continue
+			
+		if chi < prev_chi:
+			prev_chi = chi
+			prev_popt = popt
+			continue
+			
+		if chi > prev_chi:
+			gaussian_loop = False
+			print 'Converged'
+			
+	
+	
+	#popt = [a, mean, sigma]
+	optimal_u_shift = prev_popt[1]
+	shift_err = 3*prev_popt[2]  # = 3 x sigma
+	
+
+	#a plot to see what's going on and check the fit is good
+	plt.figure()
+	plt.plot(x, y, 'bo')
+	plt.plot(x, gaus_fit, 'ro', label='fit')
+	plt.legend(loc='best')
+	
 
 	
+	savepath = img_dir + '/'+block_choice+'_Ap'+str(ap_rad)+'.png'
+	plt.savefig(savepath)
+	#plt.show()
+
+
 
 
 
@@ -382,7 +468,7 @@ for ap_rad in range(2,6):
 	plt.subplots_adjust(left=None, bottom=0.13, right=None, top=None, wspace=None, hspace=None) #stop labels being clipped
 
 	
-	best_u_min_g = [val+shift for val in u_min_g]
+	best_u_min_g = [val + optimal_u_shift for val in u_min_g]
 
 	#create a 2D histogram of all the stars in the pointing
 	nxbins = int(max(g_min_r)/0.017)
@@ -442,13 +528,65 @@ for ap_rad in range(2,6):
 	ysmooth = func(xsmooth)
 	plt.plot(x, y, 'k--')
  	plt.annotate('A2V', xy=(2.2, 2.5))
-	savepath = os.getcwd()+'/'+block_choice+'_'+ap_name+'.png'
+	savepath = img_dir +'/'+block_choice+'_'+ap_name+'.png'
 	plt.savefig(savepath)
+	print 'Saved', savepath
 	#plt.show()
 
 
 
-	shifts_arr.append( [str(ap_rad), str(-shift), str(avg_shift_err) ] )
+	#keep track of the calculated shifts and errors
+	shifts_arr.append( [str(ap_rad), str(-optimal_u_shift), str(shift_err) ] )
+
+
+
+
+
+
+	#add corrected u_mags to fits file
+	openfile = fits.open(merged_fpath, mode='update')
+	block_tab = openfile[1].data
+	print 'Updating', merged_fpath
+	
+	if not ap_name+'_corr_'+u_appendix in block_tab.dtype.names:
+		u_mags = block_tab[ap_name+'_mag_'+u_appendix]
+		new_u = [line + optimal_u_shift for line in u_mags]
+		block_tab = append_table( block_tab, ap_name+'_corr_'+u_appendix, new_u, '>f4')
+	
+	else:
+		u_mags = block_tab[ap_name+'_mag_'+u_appendix]
+		new_u = [line + optimal_u_shift for line in u_mags]
+		block_tab[ap_name+'_corr_'+u_appendix] = new_u
+	
+	openfile[1].data = block_tab
+	openfile.close()
+
+
+	
+	catpath = glob.glob(block[0]+'/catalogues/*_cat.fits',)
+	openfile = fits.open(catpath[0], mode='update')
+	print 'Updating', catpath[0]
+
+	for ccdnum in range(1,33):
+		#print 'ccd', str(ccdnum)
+		ccd_tab = openfile[ccdnum].data
+		
+		if not ap_name+'_corr' in ccd_tab.dtype.names:
+			u_mags = ccd_tab[ap_name+'_mag']
+			new_u = [line + optimal_u_shift for line in u_mags]
+			ccd_tab = append_table(ccd_tab, ap_name+'_corr', new_u, '>f4')
+
+		else:
+			u_mags = ccd_tab[ap_name+'_mag']
+			new_u = [line + optimal_u_shift for line in u_mags]
+			ccd_tab[ap_name+'_corr']=new_u
+
+		openfile[ccdnum].data = ccd_tab
+	openfile.close()
+	print
+
+
+
 
 
 
@@ -458,84 +596,8 @@ savepath = os.getcwd()+'/u_corrections_'+block_choice+'.txt'
 with open(savepath, 'w+') as f:
 	for line in shifts_arr:
 		f.write(line[0]+'	'+line[1]+'	'+str(line[2])+'	\n')
-	
-
-
-
-
-#add corrected u_mags to fits file
-openfile = fits.open(merged_fpath, mode='update')
-table = openfile[1].data
-
-u_appendix='1'
-if not ap_name+'_corr_'+u_appendix in table.dtype.names:
-	u_mags = table[ap_name+'_mag_'+u_appendix]
-	new_u = [line + u_shift for line in u_mags]
-	table = append_table(table, ap_name+'_corr_'+u_appendix, new_u, '>f4')
-	print 'Corrected vega mags added'
-else:
-	u_mags = table[ap_name+'_mag_'+u_appendix]
-	new_u = [line + u_shift for line in u_mags]
-	table[ap_name+'_corr_'+u_appendix] = new_u
-	print 'Corrected vega mags updated'
-	
-	
-if not ap_name+'_corr_AB_'+u_appendix in table.dtype.names:
-	u_AB = table[ap_name+'_mag_AB_'+u_appendix]
-	new_AB = [line + u_shift for line in u_AB]
-	table = append_table(table, ap_name+'_corr_AB_'+u_appendix, new_u, '>f4')
-	print 'Corrected AB mags added'
-else:
-	u_AB = table[ap_name+'_mag_AB_'+u_appendix]
-	new_AB = [line + u_shift for line in u_AB]
-	table[ap_name+'_corr_AB_'+u_appendix]=new_AB
-	print 'Corrected AB mags updated'
-openfile[1].data = table
-openfile.close()
-
-
-
-	
-catpath = glob.glob(block[0]+'/catalogues/*_cat.fits',)
-openfile = fits.open(catpath[0], mode='update')
-print catpath[0]
-for ccdnum in range(1,33):
-	print 'ccd', str(ccdnum)
-	table = openfile[ccdnum].data
-	if not ap_name+'_corr' in table.dtype.names:
-		u_mags = table[ap_name+'_mag']
-		new_u = [line + u_shift for line in u_mags]
-		table = append_table(table, ap_name+'_corr', new_u, '>f4')
-		print 'Corrected vega mags added'
-	else:
-		u_mags = table[ap_name+'_mag']
-		new_u = [line + u_shift for line in u_mags]
-		table[ap_name+'_corr']=new_u
-		print 'Corrected vega mags updated'
-	
-	if not ap_name+'_corr_AB' in table.dtype.names:
-		u_AB = table[ap_name+'_mag_AB']
-		new_AB = [line + u_shift for line in u_AB]
-		table = append_table(table, ap_name+'_corr_AB', new_u, '>f4')
-		print 'Corrected AB mags added'
-	else:
-		u_AB = table[ap_name+'_mag_AB']
-		new_AB = [line + u_shift for line in u_AB]
-		table[ap_name+'_corr_AB']=new_AB
-		print 'Corrected AB mags updated'
-	openfile[ccdnum].data = table
-openfile.close()
-
-
-
-
-
-
-
-
-
-
-
+print 'Saved', savepath
+print	
 
 
 

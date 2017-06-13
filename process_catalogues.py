@@ -42,7 +42,7 @@ NBd_conv = 2.5*math.log((3631.0/2669.32) ,10)
 #Loop though a, b, and c block in order to make everything easier to follow
 a_block, b_block, c_block = make_lists.bandmerge_list(ex_path)
 
-a_catnames = [] #in order u,g,r_r, r_b, i,NB
+a_catnames = [] #in order u,g, r, r2, i,NB
 for dirname in a_block:
 	catname = glob.glob(dirname + '/catalogues/*cat.fits')
 	if len(catname)!=0:
@@ -63,7 +63,7 @@ all_catnames = [a_catnames, b_catnames, c_catnames]
 
 for block_index,block in enumerate(all_catnames):
 	
-	#if a or b block, check there's 6 catalogue files (u, g, r_r, r_b, i, NB)
+	#if a or b block, check there's 6 catalogue files (u, g, r, r2, i, NB)
 	if block == all_catnames[0] or block == all_catnames[1]:
     		if len(block)!=6: 
     			import sys
@@ -108,9 +108,9 @@ for block_index,block in enumerate(all_catnames):
 	            block_header = ccd[0].header['HIERARCH ESO OBS NAME']
 	            _, block_header = block_header.rsplit('_', 1)
 	            if block_header[0:2] == 'hr':
-	                filtername = 'r_r'
+	                filtername = 'r'
 	            elif block_header[0:2] == 'ur':
-	                filtername = 'r_b'
+	                filtername = 'r2'
 	        ccd.close()
 
 
@@ -202,7 +202,7 @@ for block_index,block in enumerate(all_catnames):
         	    		#Vega magnitudes	        	
         	    		#print 'Adding vega magnitude'
         	    		#convert the AB magnitudes using the calculated corrections
-		    		if filtername == 'r_r' or filtername == 'r_b': conv = r_conv
+		    		if filtername == 'r' or filtername == 'r2': conv = r_conv
 		    		if filtername == 'i': conv = i_conv
 		    		if filtername == 'u': conv = u_conv
 		    		if filtername == 'g': conv = g_conv

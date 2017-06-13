@@ -187,6 +187,9 @@ elif block_choice=='c':
 	
 	
 for filtername in filternames.keys():	
+
+	if filtername!='i':continue
+
 	catpath = glob.glob(block[filternames[filtername]]+'/catalogues/*cat.fits')
 	print block[filternames[filtername]]
 	
@@ -204,6 +207,8 @@ for filtername in filternames.keys():
 		os.makedirs(fits_dirname)
 	
 	for ccdnum in range(1,33):	
+	
+		if ccdnum!=1: continue
 	
 		#merged apass+ccd filename
 		apass_ccd_name = fits_dirname+'/apass_'+block_choice+'ccd'+str(ccdnum)+'.fits'
@@ -245,7 +250,7 @@ for filtername in filternames.keys():
  		#add aperture 7 AB mags : use this to filter out bad stars
  		mags = [(-2.5*math.log10(line / hdr['exptime']) ) + hdr['nightzpt'] if line>0 else float('nan')  for line in table['Aper_flux_7'] ]
 
- 		#remove vphas mags brighter than 12 and fainter than 20
+ 		#remove vphas mags brighter than 12 and fainter than 17
  		mags = [line-float(hdr['APCOR7']) for line in mags] #apcor is the vphas catalogues aperture correction
  		mags = [line if 12.<line<17.0 else float('Nan') for line in mags ]
  		
@@ -362,6 +367,7 @@ no_matches = []
 print 'Calculating aperture corrections'
 for filtername in filternames.keys():
 	print filtername
+	if filtername!='i':continue
 	
 	#directory containing the apass-vphas cross matched fits files
 	fits_dirname = os.getcwd()+'/'+block_choice+'_'+filtername+'_fitsfiles'
@@ -408,7 +414,7 @@ for filtername in filternames.keys():
 
 
 			#apass mags
-			if filtername=='r_r' or filtername=='r_b':
+			if filtername=='r2':
 				apass_AB = table['Sloan_r']
 			else:
 				apass_AB = table['Sloan_'+filtername]		
