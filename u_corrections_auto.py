@@ -63,6 +63,14 @@ print
 
 
 
+#create a directory to store images in
+img_dir = os.getcwd()+'/u_fitting'
+if not os.path.exists(img_dir):
+	os.makedirs(img_dir)
+
+
+
+
 
 
 openfile = fits.open(merged_fpath)
@@ -237,7 +245,6 @@ for ap_rad in range(2,6):
 
 
 
-
 	all_hist_sum = []
 	#all the u band magnitude shifts to try.
 	#NB This is a large range because the count number is used to plot a gaussian, from which the optimal
@@ -275,6 +282,7 @@ for ap_rad in range(2,6):
 		#mask out 0 values	
 		Hist = np.where(Hist>0, Hist, float('NaN')) 
 		extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
+
 
 					
 		#min/maximum possible colours values the main cluster of stars occupies, and how many bins on 		each axis
@@ -395,7 +403,6 @@ for ap_rad in range(2,6):
 	#Here, chi = chi_squared / len(x) . Just using chi-squared, all the points will be removed - we 
 	#still want something gaussian-ish to fit to
 	prev_chi = None
-	prev_popt = None
 	gaussian_loop = True
 	while gaussian_loop == True:
 	
@@ -428,6 +435,7 @@ for ap_rad in range(2,6):
 		if prev_chi == None:
 			prev_chi = chi
 			prev_popt = popt
+			prev_pcov = pcov
 			continue
 			
 		if chi < prev_chi:
@@ -439,24 +447,89 @@ for ap_rad in range(2,6):
 			gaussian_loop = False
 			print 'Converged'
 			
+			
+			
+			
 	
 	
 	#popt = [a, mean, sigma]
-	optimal_u_shift = prev_popt[1]
-	shift_err = 3*prev_popt[2]  # = 3 x sigma
+	optimal_u_shift = prev_popt[1] #=mean of gaussian fit
+	optimal_counts = prev_popt[0] #number of counts corresponding to the optimal u shift
 	
+	#Noise on the highest number of counts = sqrt(counts)
+	opt_counts_noise = math.sqrt(optimal_counts)
+
+
+
+
+	#interpolate the gaussian fit and find the value along it that corresponds to the gaussian peak minus the noise
+	#also interpolate ushift with the same increment, and find the u shift that corresponds to the noise count
+	#this will be the error on the u shift
+	gaus_interp = interpolate.interp1d(x, gaus_fit)
+	x_new = np.linspace( min(x), max(x), 400 )
+	gaus_new = gaus_interp(x_new)
+	
+	
+	
+	#u shift corresponding to the low noise counts on each side of the peak
+	lowest_counts = optimal_counts - opt_counts_noise
+	
+	#left side of the Gaussian peak = shits more negative than the optimal value
+	left_peak = [yval for xval, yval in zip(x_new, gaus_new) if xval < optimal_u_shift]
+	nearest_counts_val = min( left_peak, key=lambda c: abs( c - lowest_counts) ) #nearest count value (y axis)
+	low_ushift = [ xval for xval, yval in zip(x_new, gaus_new) if yval==nearest_counts_val] #nearest ushift corresponding to this (x axis)
+	low_ushift = low_ushift[0]
+
+		
+	#right side of the peak = u shift values more positive than the optimal value
+	right_peak = [yval for xval, yval in zip(x_new, gaus_new) if xval > optimal_u_shift]
+	nearest_counts_val = min( right_peak, key=lambda c: abs( c - lowest_counts) )
+	high_ushift = [ xval for xval, yval in zip(x_new, gaus_new) if yval==nearest_counts_val]
+	high_ushift = high_ushift[0]
+
+
+	#average the lower and upper low shifts to get the error	
+	shift_err = ((optimal_u_shift - low_ushift) + (high_ushift - optimal_u_shift) ) / 2
+	
+	
+	#Alternative error calculation
+	#For a Gaussian, the error on the mean is sigma / sqrt(N)
+	#shift_err = prev_popt[2] / math.sqrt( optimal_counts )		
+	
+		
+		
+	#error on the fit of the mean from scipy
+	perr = np.sqrt( np.diag(prev_pcov) )
+	fitting_err = perr[1] 
+		
+		
+		
+	#There will also be some systematic errors that i can't quantifty
+	#eg. Whether the lines from Drew (so the stellar model atmospheres and reddening law) are good
+	# Whether the stars in the field are typical	
+		
+	
+	tot_err = math.sqrt( fitting_err**2 + shift_err**2 )	
+
+
+	#print 'Initial', shift
+	#print 'Gaussian mean', optimal_u_shift
+	#print 'Gaussian sigma', prev_popt[2]
+	#print 'Err on Gaussian mean', tot_err
+
+
 
 	#a plot to see what's going on and check the fit is good
 	plt.figure()
 	plt.plot(x, y, 'bo')
-	plt.plot(x, gaus_fit, 'ro', label='fit')
+	plt.plot(x_new, gaus_new, 'r-', label='Gaussian')
+	plt.xlabel('u shift')
+	plt.ylabel('Locus counts')
 	plt.legend(loc='best')
-	
-
+	#plt.show()
 	
 	savepath = img_dir + '/'+block_choice+'_Ap'+str(ap_rad)+'.png'
 	plt.savefig(savepath)
-	#plt.show()
 
 
 
@@ -528,6 +601,9 @@ for ap_rad in range(2,6):
 	ysmooth = func(xsmooth)
 	plt.plot(x, y, 'k--')
  	plt.annotate('A2V', xy=(2.2, 2.5))
+ 	
+ 	
+ 	#save
 	savepath = img_dir +'/'+block_choice+'_'+ap_name+'.png'
 	plt.savefig(savepath)
 	print 'Saved', savepath

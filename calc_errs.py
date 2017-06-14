@@ -75,6 +75,8 @@ for i,filtername in enumerate(filternames):
 		
 		
 		for apnum in range(2, 8):
+		
+			if filtername!='u': continue
 
 		
 			#skip anything but aperture 2,3,4,5 for u
@@ -245,7 +247,7 @@ for i,filtername in enumerate(filternames):
 				table[ap_name+'_lower_lim'] = low_mag
 			
 			
-		opencat[ccdnum].data = table
+			opencat[ccdnum].data = table
 	print 'Catalogue updated with error values'
 	print
 	opencat.close()
