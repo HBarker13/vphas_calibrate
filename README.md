@@ -14,7 +14,7 @@ This was added incase there's more than one vphas pointing in the directory.
 
 1. Download VPHAS+ files from CASU. This set of scripts they are put in a directory vphas_xxxx  where xxx if the four number vphas pointing number. eg. vphas_0175. Move the filelist to /vphas_xxx/file_list_xxx 
 
-2. sort_vphas.py  Make a directory vphas_xxx_ex and sorts the raw files. This makes it easier to see which directory contains ovbservations from which band. 
+2. sort_vphas.py  Make a directory vphas_xxx_ex and sorts the raw files. This makes it easier to see which directory contains observations from which band. Only keeps poitings with eso grade A or B.
 
 3. decompress_vphas.py : Decompress all the files using imcopy
 
