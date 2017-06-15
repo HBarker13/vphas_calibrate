@@ -99,6 +99,16 @@ for x in range(0, len(filelist), 4):
 	#open the single file to see if it is in A, B, or C block
 	#and get the filtername
 	open_single = fits.open( vphas_dir + '/' + filegroup[0] )
+	
+	
+	#check the eso grade and continue if it isn't A or B
+	acceptable_grades = ['A', 'B']
+	esograde = open_single[0].header['ESOGRADE']
+	if eso_grade not in acceptable_grades:
+		continue
+	
+	
+	
 	block_num = open_single[0].header['HIERARCH ESO TPL EXPNO']
 	
 	
