@@ -9,14 +9,9 @@ import os
 import math
 import numpy as np
 import csv
+import glob
+import sys
 
-
-
-
-
-
-#read in the apass file (downlaoded from the apass webpage in csv format)
-apass = os.getcwd() +'/apass.csv' 
 
 
 #name of the new file to save to
@@ -26,8 +21,26 @@ savepath = os.getcwd()+'/apass_reduced.csv'
 if os.path.exists(savepath):
 	print 'File already exists!'
 	print savepath
+	sys.exit()
+
+
+
+
+#read in the apass file (downlaoded from the apass webpage in csv format)
+apass = [ fpath for fpath in glob.glob( os.getcwd() +'/*apass*.csv') if 'reduced' not in fpath]
+
+if len(apass)==0:
+	print 'No apass files found'
+	print os.getcwd()
+	raw_input('Paused')
+	 
+
+
+
 
 else:
+
+	apass = apass[0]
 
 	apass_tab = np.recfromcsv( apass )
 	colnames = apass_tab.dtype.names

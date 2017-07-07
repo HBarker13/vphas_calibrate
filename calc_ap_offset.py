@@ -2,7 +2,7 @@
 
 
 """calculate offset between vphas apertures and apass (identical to first part of apass_colour_diagram.py)
-Cross-match vphas aperture and apass using 12<vphas_mags<17. Use topcat to find all matches in a 5 arcsec radius and 
+Cross-match vphas aperture and apass using 13<vphas_mags<16. Use topcat to find all matches in a 5 arcsec radius and 
 choose the brightest matched apass star as the true counterpart.
 Create text file list of offsets for each aperture. These are equivalent to the apcor header values """
 
@@ -50,21 +50,36 @@ if not os.path.exists(apass):
 	sys.exit()
 	
 
+#directory to store the lists of aperture corrections
+corrections_dir = os.getcwd()+'/aperture_corrections'
+if not os.path.exists(corrections_dir):
+	os.makedirs(corrections_dir)	
+
+
+
+
+
 
 #Match vphas and apass objects.
 #use topcat to match the apass to vphas ccd stars and save the resultant table
 #Use magnitude using aperture 7 to remove bad stars
 
 if block_choice=='a' or block_choice=='b':
-	filternames = {'g':1, 'r':2, 'r2':3, 'i':4}
+	filternames = {'g':1, 'r':2, 'r2':3, 'i':4} #u=0, NB=5
 elif block_choice=='c':
-	filternames = {'g':1}
+	filternames = {'g':0} #NB=1
 	
 	
 for filtername in filternames.keys():	
+	print filtername
+	
+	#if the catalogue can't be found
+	if block[filternames[filtername]] is None:
+		print filtername, 'catalogue is None'
+		sys.exit()
+		
 
-
-	catpath = glob.glob(block[filternames[filtername]]+'/catalogues/*cat.fits')
+	catpath = glob.glob(block[filternames[filtername]] + '/catalogues/*cat.fits')
 	
 	if len(catpath)==0:
 		print 'No catalogue'
@@ -87,12 +102,24 @@ for filtername in filternames.keys():
 	for ccdnum in range(1,33):	
 	
 	
+	
 		#merged apass+ccd filename
 		apass_ccd_name = fits_dirname+'/apass_'+block_choice+'ccd'+str(ccdnum)+'.fits'
 
 		#skip if the file already exists
 		if os.path.exists(apass_ccd_name):
 			continue
+			
+			
+		#filepath containing the aperture corrections
+		#skip if it already exists	
+		for apnum in range(2,5):
+			corrections_path = corrections_dir+'/'+block_choice+'_'+filtername+'_aper'+str(apnum)+'_corrections.txt'
+			if os.path.exists(corrections_path): 
+				continue	
+			
+			
+			
 			
 		print 'ccd ', str(ccdnum)
 		
@@ -133,14 +160,14 @@ for filtername in filternames.keys():
 			
  
  		#add aperture 7 AB mags : use this to filter out bad stars
- 		mags = [( -2.5*math.log10(line / hdr['exptime'] ) ) + hdr['nightzpt'] if line>0 else float('nan')  for line in table['Aper_flux_7'] ]
+ 		mags = [( -2.5*math.log10(line / hdr['exptime'] ) ) + hdr['apasszpt'] if line>0. else float('nan')  for line in table['Aper_flux_7'] ]
  		
  		#apply the vphas catalogues aperture correction
  		#I find them consistent with the ones I calculate to ~0.001 mags
  		#mags = [line-float(hdr['APCOR7']) for line in mags] 
 
- 		#remove vphas mags brighter than 13th and fainter than 19th
- 		mags = [line if 13.<line<17.0 else float('Nan') for line in mags ]
+ 		#remove vphas mags brighter than 13th and fainter than 21st to avoid poor vphas photometry
+ 		mags = [line if 13.<line<21.0 else float('Nan') for line in mags ]
  		
  			
 		mag_col = fits.Column(name='Aper_7_mag', format='D', array=mags)
@@ -168,6 +195,8 @@ for filtername in filternames.keys():
 		matched = fits.open(apass_ccd_name, mode='update')
 		table = matched[1].data
 		
+	
+		
 		#sequence numbers are unique within a ccd, so use them to identify objects that need removing
 		del_seq_nums = set()
 		for line in table:
@@ -183,13 +212,13 @@ for filtername in filternames.keys():
 				if repeat['Aper_7_mag']!=maxmag:
 					del_seq_nums.add(repeat['Sequence_number'])
 					
-					
-					
+			
+			
 		#remove apass-vphas matches that are more than 1.5 arcseconds apart
 		#This shouldn't be needed as we already match to the brightest star in vphas 
 		#ie. If there was a brighter star in the vicinity of the apass star, that would be the apass star	
 		for line in table:
-			if line['Separation']>1.5:
+			if line['Separation']>2.5:
 				del_seq_nums.add( line['Sequence_number'])			
 					
 					
@@ -197,7 +226,6 @@ for filtername in filternames.keys():
 			table = table[table['Sequence_number']!=val]
 
 
-			
 		
 		
 		
@@ -217,8 +245,7 @@ for filtername in filternames.keys():
 				
 		matched[1].data = table
 		matched.close()		
-
-
+		
 
 
 
@@ -259,23 +286,18 @@ for filtername in filternames.keys():
 		
 		matched[1].data = table
 		matched.close()			
-		
 
-		
 
 		#clean up, removing temporary files
 		os.remove(temp_path)
 		os.remove(distances)
-
+		
 
 
 ################################################################################################################
 #plot apass vs vphas magntitudes for different apertures to calculate to the aperture to apass correction
 
 print
-corrections_dir = os.getcwd()+'/aperture_corrections'
-if not os.path.exists(corrections_dir):
-	os.makedirs(corrections_dir)	
 	
 	
 	
@@ -289,6 +311,7 @@ print 'Calculating aperture corrections'
 for filtername in filternames.keys():
 	print filtername
 
+
 	#directory containing the apass-vphas cross matched fits files
 	fits_dirname = os.getcwd()+'/'+block_choice+'_'+filtername+'_fitsfiles'
 	
@@ -300,8 +323,8 @@ for filtername in filternames.keys():
 		
 		#skip if the aperture corrections file already exists
 		corrections_path = corrections_dir+'/'+block_choice+'_'+filtername+'_aper'+str(apnum)+'_corrections.txt'
-		if os.path.exists(corrections_path): 
-			continue
+		#if os.path.exists(corrections_path): 
+		#	continue
 		
 		
 		#array to store aperture corrections
@@ -317,6 +340,7 @@ for filtername in filternames.keys():
 
 
 		for ccdnum in range(1,33):
+			
 			print 'ccd ', str(ccdnum)	
 			
 			#open the vphas catalogue to get header values
@@ -331,10 +355,11 @@ for filtername in filternames.keys():
 			openfile = fits.open(apass_ccd_name)
 			table = openfile[1].data
 			openfile.close()
-			
+	
+	
 			
 			#check to see if there are no apass-vphas crossmatches
-			if len(table)==0:
+			if len(table)<5:
 				err_line = 'Block '+ str(block_choice) + ', filter: ' + str(filtername) + ', CCD: ' + str(ccdnum) + ', Ap: ' + str(apnum) + ', no matches '
 				intersect_list.append( [ccdnum, float('nan') ] )
 				error_list.append( [ccdnum, float('nan') ] )
@@ -343,10 +368,10 @@ for filtername in filternames.keys():
 			
 			
 			
-			#calculate vphas magntiudes from the aperture count NOTE: APASS and NIGHTZPT are in is AB
+			#calculate vphas magntiudes from the aperture count NOTE: APASS and APASSZPT are in is AB
 			#Don't apply the aperture correction in the vphas header, we're calculating our own
 			# If you do want to use it: mag = -2.5 * log10( counts * (1+apcor) / exptime ) + zpt
-			vphas_AB = [ ( -2.5 * math.log10( line / hdr['exptime'] ) ) + hdr['nightzpt'] if line>0 else float('nan')  for line in table['Aper_flux_'+str(apnum)] ]
+			vphas_AB = [ ( -2.5 * math.log10( line / hdr['exptime'] ) ) + hdr['apasszpt'] if line>0 else float('nan')  for line in table['Aper_flux_'+str(apnum)] ]
 
 
 
@@ -379,15 +404,22 @@ for filtername in filternames.keys():
 					
 		
 			#only use values in a very well-behaved range ie. 13< mag <16. 
-			# APASS saturates for mags <11 and becomes inaccurate >~17
-			# VPHAS is good up to ~21st mag, but the g band saturates around ~12th mag
+			# APASS saturates for mags <11 and becomes inaccurate >~16
+			# VPHAS is good up to ~21st mag, but the g band saturates around ~13th mag
 			
 			
 			# have to swap the x and y axes to fit the best fit line
 			#newx, newy are used to fit the line of best fit
-			newx = [line[1] for line in difference_vphas if 13<line[1]<17]  # = apass
-			newy = [line[0] for line in difference_vphas if 13<line[1]<17] # = apass-vphas
+			if filtername=='g': low_limit = 13.0
+			else: low_limit = 12.5
 			
+			high_limit = 17.0
+			
+			
+			newx = [line[1] for line in difference_vphas if low_limit < line[1] < high_limit]  # = apass
+			newy = [line[0] for line in difference_vphas if low_limit < line[1] < high_limit] # = apass-vphas
+
+
 			
 			#flag an error if this filtering removes all the objects in the list
 			if len(newx)==0 or len(newy)==0:
@@ -447,7 +479,8 @@ for filtername in filternames.keys():
 				
 								
 				if counter==0 : repeat=False
-			
+				
+
 
 				
 			#save the intersection: intersection = apass - vphas  -> apass = vphas + intersection
@@ -457,8 +490,11 @@ for filtername in filternames.keys():
 			
 			#calculate the error on the fit as the average distance to the line of best fit
 			variance = [ (val-intersection)**2 for val in newy] 
-			st_dev =  math.sqrt( sum(variance) )
-			error = st_dev / ( len(variance) - 1 )
+			if len(variance)<=1:
+				error = 'inf'
+			else:
+				st_dev =  math.sqrt( sum(variance) )
+				error = st_dev / ( len(variance) - 1 )
 			error_list.append([ccdnum, error])
 
 				

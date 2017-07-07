@@ -19,32 +19,43 @@ def make_dir(dirname):
 
 import make_lists
 
+
+
+
 args = make_lists.get_vphas_num()
-current_path = os.getcwd()
-ex_path = current_path +  '/vphas_'+args.vphas_num+'_ex'
+ex_path = os.getcwd() +  '/vphas_'+args.vphas_num+'_ex'
+
+
+
 
 #find decompressed fits files and created dirs for ccds
 decom_files = glob.glob(ex_path+'/*/*/*decom*.fit')
 for fpath in decom_files:
-   ccd_dirpath, _ = fpath.rsplit('_', 1)
-   _, fname = ccd_dirpath.rsplit('/', 1)
-   ccd_dirpath = ccd_dirpath + '_ccds'
-   if not os.path.exists(ccd_dirpath):
-      os.makedirs(ccd_dirpath)
-      print "Directory created: %s " %ccd_dirpath
 
-#extract 32 ccds from each decom fits file and create file if it
-#doesn't already exist
-   open_decom = fits.open(fpath)
-   for x in range(1,33):
-      new_ccd = open_decom[x]
-      newName = fname + '_ccd' + str(x) + '.fit'
-      newPath = ccd_dirpath + '/' + newName
-      if not os.path.exists(newPath):
-         new_ccd.writeto(newPath)
-         print "%s extracted" %(newName)
-      else:
-         print "%s already extracted" %newName
-   open_decom.close()
+	print fpath
+
+	ccd_dirpath, _ = fpath.rsplit('_', 1)
+	_, fname = ccd_dirpath.rsplit('/', 1)
+	ccd_dirpath = ccd_dirpath + '_ccds'
+	if not os.path.exists(ccd_dirpath):
+		os.makedirs(ccd_dirpath)
+		print "Directory created: %s " %ccd_dirpath
+		
+
+	#extract 32 ccds from each decom fits file and create file if it
+	#doesn't already exist
+	open_decom = fits.open(fpath, ignore_missing_end=True)
+	for x in range(1,33):
+		new_ccd = open_decom[x]
+		
+		newName = fname + '_ccd' + str(x) + '.fit'
+		newPath = ccd_dirpath + '/' + newName
+		if not os.path.exists(newPath):
+			new_ccd.writeto(newPath)
+         		print "%s extracted" %(newName)
+      		else:
+         		#print "%s already extracted" %newName
+         		continue
+   	open_decom.close()
 
    

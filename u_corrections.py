@@ -337,12 +337,12 @@ while(loop):
 	u_min_g = [val+shift for val in u_min_g]
 	
 	#convert to the form vphas uses
-	#mag = -2.5* log10( counts*(1+apcor)/exp_t) +nightzpt
+	#mag = -2.5* log10( counts*(1+apcor)/exp_t) +apasszpt
 	# apcor = ((exp_t * 10^ (-(mag-night_zpt)/2.5) ) / counts )-1
 	
 	import math
 	for line in table:
-		corr_mag = -2.5*math.log10( line['aper_flux_3_1']*1.050495/line['exp_time_1'] ) + line['Nightzpt_1']
+		corr_mag = -2.5*math.log10( line['aper_flux_3_1']*1.050495/line['exp_time_1'] ) + line['Apasszpt_1']
 		#print corr_mag, line['aper_flux_3_mag_AB_1']
 	
 		#ap_cor = -2.5*log10( (1+shift) / exp_t )

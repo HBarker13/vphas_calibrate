@@ -6,6 +6,7 @@
 import os
 import glob
 import subprocess as sp
+import shutil
 
 
 
@@ -22,7 +23,10 @@ print "Downloading..."
 sp.call(["download_vphas.sh", reqNo, vphas_num])
 print
 print "Sorting files..."
-os.system("sort_vphas.py -v %s" %vphas_num)
+#os.system("sort_vphas.py -v %s" %vphas_num)
+print
+print 'Please check the sorted files'
+raw_input('Press any key to continue')
 print
 print "Decompressing files..."
 os.system("decompress_vphas.py -v %s" %vphas_num)
@@ -59,10 +63,58 @@ print
 bandmerge_names = glob.glob(os.getcwd()+'/*_block_merged_cat.fits')
 for name in bandmerge_names:
 	os.remove(name)
+dirnames = glob.glob('*/')
+for name in dirnames:	
+	if 'merged_cat' in name:
+		shutil.rmtree(name)
+
+	
 print 'Bandmerging'
 os.system("bandmerge_catalogue.py -v %s" %vphas_num)
-print
+
+
+
+#remove uneccessary directories
+#dirnames = glob.glob('*/')
+#for name in dirnames:
+#	
+#	if '_fitsfiles' in name:
+#		shutil.rmtree(name)
+#		
+#	if 'merged_cat' in name:
+#		shutil.rmtree(name)
+		
+	
+
+		
+
 
 
 print '-------------------------------COMPLETE-------------------------------------'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	

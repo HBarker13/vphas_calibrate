@@ -38,9 +38,15 @@ for dirname in b_block:
 
 c_catnames = []
 for dirname in c_block:
-	catname = glob.glob(dirname + '/catalogues/*cat.fits')
-	if len(catname)!=0:
-		c_catnames.append(catname[0])
+
+	if str(dirname) == 'None': 
+		catname = 'None'
+	else:
+		catname = glob.glob(dirname + '/catalogues/*cat.fits')
+		catname = catname[0]
+
+	c_catnames.append(catname)
+
 
 
 
@@ -177,12 +183,14 @@ if not os.path.exists(os.getcwd()+'/'+savename):
 	
 
 savename = 'c_block_merged_cat.fits'
-print c_catnames
 if len(c_block)==2 and not os.path.exists(os.getcwd()+'/'+savename): 
-	print 'Merging block c'	
-	table1fpath = str(c_catnames[0])
-	table2fpath = str(c_catnames[1])
-	os.system('java -jar /mirror/scratch/hbarker/pkgs/jystilts.jar /home/hbarker/scripts/tmatch2.py {} {} {} {} {} {} {} {} {} {} {} {} {} {}'.format(table1fpath, table2fpath, 'fits', 'True', 'fits', 'True', 'RA', 'DEC', 'RA', 'DEC', 0.3, '1and2', 'best', savename) ) 
+
+	if 'None' not in c_catnames:
+
+		print 'Merging block c'	
+		table1fpath = str(c_catnames[0])
+		table2fpath = str(c_catnames[1])
+		os.system('java -jar /mirror/scratch/hbarker/pkgs/jystilts.jar /home/hbarker/scripts/tmatch2.py {} {} {} {} {} {} {} {} {} {} {} {} {} {}'.format(table1fpath, table2fpath, 'fits', 'True', 'fits', 'True', 'RA', 'DEC', 'RA', 'DEC', 0.3, '1and2', 'best', savename) ) 
 print	
 	
 	

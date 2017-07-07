@@ -1,7 +1,7 @@
 #!/mirror/scratch/hbarker/pkgs/anaconda/bin/python
 
 #Find catalogue fits files in expath and create a fits file containing the entries of all 32 ccds
-#Adds some useful columns: filter, directory+ccd, exposure_time, nightzpt, mags
+#Adds some useful columns: filter, directory+ccd, exposure_time, zpt, mags
 #New files are saved in directory in expath
 
 
@@ -21,8 +21,7 @@ import make_lists
 
 
 args = make_lists.get_vphas_num()
-current_path = os.getcwd()
-ex_path = current_path +  '/vphas_'+args.vphas_num+'_ex'
+ex_path = os.getcwd() +  '/vphas_'+args.vphas_num+'_ex'
 start = datetime.now()
 
 
@@ -42,27 +41,37 @@ NBd_conv = 2.5*math.log((3631.0/2669.32) ,10)
 #Loop though a, b, and c block in order to make everything easier to follow
 a_block, b_block, c_block = make_lists.bandmerge_list(ex_path)
 
+
 a_catnames = [] #in order u,g, r, r2, i,NB
 for dirname in a_block:
 	catname = glob.glob(dirname + '/catalogues/*cat.fits')
 	if len(catname)!=0:
 		a_catnames.append(catname[0])
+		
+		
 b_catnames = []
 for dirname in b_block:
 	catname = glob.glob(dirname + '/catalogues/*cat.fits')
 	if len(catname)!=0:
 		b_catnames.append(catname[0])
-c_catnames = []
-for dirname in c_block:
-	catname = glob.glob(dirname + '/catalogues/*cat.fits')
-	if len(catname)!=0:
-		c_catnames.append(catname[0])
-all_catnames = [a_catnames, b_catnames, c_catnames]
-
+		
+		
+	
+if None not in c_block:	
+	c_catnames = []
+	for dirname in c_block:
+		catname = glob.glob(dirname + '/catalogues/*cat.fits')
+		if len(catname)!=0:
+			c_catnames.append(catname[0])
+	all_catnames = [a_catnames, b_catnames, c_catnames]
+	
+else:
+	all_catnames = [a_catnames, b_catnames]
 
 
 for block_index,block in enumerate(all_catnames):
-	
+
+
 	#if a or b block, check there's 6 catalogue files (u, g, r, r2, i, NB)
 	if block == all_catnames[0] or block == all_catnames[1]:
     		if len(block)!=6: 
@@ -95,7 +104,7 @@ for block_index,block in enumerate(all_catnames):
 	        ccd_fpath = glob.glob(ccd_path+'/single/*decom.fit')
 	        if len(ccd_fpath)==0:
 	        	print 'Image fits file could not be found'
-	        	print catpath
+	        	print ccd_path
 	        	import sys
 	        	sys.exit()
 	        
@@ -156,12 +165,12 @@ for block_index,block in enumerate(all_catnames):
         	    	    table = make_lists.append_table(table, 'Ccd_num', num_list, np.dtype('>f4'))
         	           
 
-			#NIGHT ZPT IS THE APASS ZEROPOINT FOR THE NIGHT -> AB MAGS
-			if 'Nightzpt' not in colnames:   
-      				nightzpt = hdr['nightzpt']         
-      		        	magzpt_list = np.full( len(table) , nightzpt)
+			#APASSZPT IS THE APASS ZEROPOINT FOR THE NIGHT -> AB MAGS
+			if 'Apasszpt' not in colnames:   
+      				zpt = hdr['apasszpt']         
+      		        	magzpt_list = np.full( len(table) , zpt)
         	        	#print "Adding magnitude zeropoint"
-        	        	table = make_lists.append_table(table, 'Nightzpt', magzpt_list, np.dtype('>f4'))  
+        	        	table = make_lists.append_table(table, 'Apasszpt', magzpt_list, np.dtype('>f4'))  
 
 	
 		  	#Adding exposure time column
@@ -192,16 +201,15 @@ for block_index,block in enumerate(all_catnames):
 
             	          	
         	    		#uncorrected AB magnitudes
-        	    		#NIGHTZPT IS IN APASS MAGS       
-        	    		#print 'Adding ', apname, 'AB magnitide'	
-        	    		AB_mags = [( -2.5*math.log10(line / hdr['exptime']) ) + hdr['nightzpt'] if line>0 else float('nan')  for line in table[apname]  ]
+        	   	    	#print 'Adding ', apname, 'AB magnitide'	
+        	    		AB_mags = [( -2.5*math.log10(line / hdr['exptime']) ) + hdr['apasszpt'] if line>0 else float('nan')  for line in table[apname]  ]
         	    		if apname+'_mag_AB' not in colnames:
         	  		 	table = make_lists.append_table(table, apname+'_mag_AB', AB_mags, np.dtype('>f4'))
 
 
         	    		#Vega magnitudes	        	
         	    		#print 'Adding vega magnitude'
-        	    		#convert the AB magnitudes using the calculated corrections
+        	    		#convert the AB magnitudes using the calculated conversions
 		    		if filtername == 'r' or filtername == 'r2': conv = r_conv
 		    		if filtername == 'i': conv = i_conv
 		    		if filtername == 'u': conv = u_conv
@@ -252,12 +260,19 @@ for block_index,block in enumerate(all_catnames):
                 				corr_AB_mags = [line-corrections_list[ccdnum-1] for line in AB_mags]  #0 counting	
                 				if apname+'_corr_AB' not in colnames:
             						table = make_lists.append_table(table, apname+'_corr_AB', corr_AB_mags, np.dtype('>f4'))
+            					else:
+            						table[ apname+'_corr_AB' ] = corr_AB_mags
 	
                 	
 	
                 				corr_vega_mags = [line-conv for line in corr_AB_mags]  #0 counting
                 				if apname+'_corr' not in colnames:		
                 			     		table = make_lists.append_table(table, apname+'_corr', corr_vega_mags, np.dtype('>f4'))
+                			     	else:
+            						table[ apname+'_corr' ] = corr_vega_mags
+                			     		
+                			     		
+
                 		     	
                 	   
 

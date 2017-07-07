@@ -325,7 +325,8 @@ def bandmerge_list(ex_path):
 			print 'c block is incomplete'
 			for line in c_block:
 				print line
-			raw_input('Press any key to continue')
+			#raw_input('Press any key to continue')
+			print
 
 	
 			

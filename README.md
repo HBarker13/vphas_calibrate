@@ -14,7 +14,7 @@ This was added incase there's more than one vphas pointing in the directory.
 
 1. Download VPHAS+ files from CASU. This set of scripts they are put in a directory vphas_xxxx  where xxx if the four number vphas pointing number. eg. vphas_0175. Move the filelist to /vphas_xxx/file_list_xxx 
 
-2. sort_vphas.py  Make a directory vphas_xxx_ex and sorts the raw files. This makes it easier to see which directory contains observations from which band. Only keeps poitings with eso grade A or B.
+2. sort_vphas.py  Make a directory vphas_xxx_ex and sorts the raw files. This makes it easier to see which directory contains ovbservations from which band. 
 
 3. decompress_vphas.py : Decompress all the files using imcopy
 
@@ -33,10 +33,10 @@ This was added incase there's more than one vphas pointing in the directory.
 
 7. process_catalogues.py  (previously combine_cats.py).  Loops through all the catalogue files, adding useful header information as columns to make using the bandmerged catalogue easier. Uses the txt files of aperture corrections to correct the vpahs magntiudes. An error will be flagged for some of the apertures 
 
-Column names: ***_mag_AB = AB magnitudes using nightzpt (from the header, in AB):   -2.5*log10( counts / exptime ) + nightzpt
+Column names: ***_mag_AB = AB magnitudes using apasszpt (from the header, in AB):   -2.5*log10( counts / exptime ) + apasszpt
               ***_mag_ = vega magnitude. AB to vega conversions calculated using zeropoints from SVO. Janet Drew says the u badn ones are likely wrong by ~0.3 mag. This should be corrected for by the calibration process
               ***_corr = vega magnitudes, including the aperture correction
-              ***_corr_AB = AB magnitudes, including the aperture correction:  -2.5*log10( counts / exptime ) + nightzpt - ap_correction
+              ***_corr_AB = AB magnitudes, including the aperture correction:  -2.5*log10( counts / exptime ) + apasszpt - ap_correction
 
 
 8. bandmerge_catalogue.py  Bandmerges the catalogues for each block using Topcat. ie. Block A contains u,g,r,r2,i 

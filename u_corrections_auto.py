@@ -80,6 +80,7 @@ openfile.close()
 
 
 
+
 """
 NEEDS REDOING
 #CS colours at Rv = 3.1
@@ -183,10 +184,11 @@ ms_g_min_r = [main_sequence[sp_type][3] for sp_type in main_sequence]
     
     
     
-    
 #remove objs with errors flagged	
 for i in range(1,6):
 	table = table[table['error_bit_flag_'+str(i)]==0]
+	
+
 	
 u_appendix ='1'		
 g_appendix ='2'
@@ -204,6 +206,7 @@ shifts_arr = []
 for ap_rad in range(2,6):
 	ap_name = 'Aper_flux_'+str(ap_rad)
 	print ap_name
+	
 
 	#synthetic tracks are in vega, so use vega
 	u_mags = table[ap_name+'_mag_'+u_appendix]
@@ -227,11 +230,16 @@ for ap_rad in range(2,6):
 		sys.exit()
 
 
+
+
 	#remove high/low mags
 	u_mags = [line if 13<line<19 else float('nan') for line in u_mags]
 	g_mags = [line if 13<line<19 else float('nan') for line in g_mags]
 	#r_mags = [line if 13<line<19 else float('nan') for line in r_mags]
 	r2_mags = [line if 13<line<19 else float('nan') for line in r2_mags]
+
+
+
 
 
 	#calculate colours
@@ -243,6 +251,14 @@ for ap_rad in range(2,6):
 	g_min_r = [line[0] for line in colours]
 	u_min_g = [line[1] for line in colours]
 
+
+	if len(g_min_r)==0:
+		print 'Length of g-r list is 0'
+		raw_input('Press any key yo continue')
+		
+	if len(u_min_g)==0:
+		print 'Length of u-g list is 0'
+		raw_input('Press any key yo continue')
 
 
 	all_hist_sum = []
@@ -404,6 +420,7 @@ for ap_rad in range(2,6):
 	#still want something gaussian-ish to fit to
 	prev_chi = None
 	gaussian_loop = True
+	gaussian_failed = False
 	while gaussian_loop == True:
 	
 		#remove the first and last values
@@ -412,10 +429,12 @@ for ap_rad in range(2,6):
 		
 		if len(x)<20:
 			print 'Gaussian fit did not converge'
-			raw_input('')
+			gaussian_failed = True
+			raw_input('Press any key to continue')
+			gaussian_loop = False
+			continue
 	
 		mean = shift
-		#mean = sum(x*y)/ sum(y)
 		sigma = math.sqrt( sum( y*(x-mean)**2 ) / sum(y) )
 	
 		#p0 = [ a, mean, sigma ] where a is the Gaussian vertical scaling, and the mean is the centre of the distribution
@@ -449,7 +468,25 @@ for ap_rad in range(2,6):
 			
 			
 			
-			
+	# don't adjust the magnitudes if the fitting failed, but make a plot to see what's
+	# going on	
+	if gaussian_failed == True:
+	
+		x = u_shifts
+		y = all_hist_sum
+		
+		
+		plt.figure()
+		plt.plot(x, y, 'bo')
+		plt.xlabel('u shift')
+		plt.ylabel('Locus counts')
+		#plt.show()
+	
+		savepath = img_dir + '/'+block_choice+'_Ap'+str(ap_rad)+'_FAILED.png'
+		plt.savefig(savepath)
+		continue
+
+		
 	
 	
 	#popt = [a, mean, sigma]
