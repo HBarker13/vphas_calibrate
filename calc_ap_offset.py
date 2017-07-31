@@ -25,6 +25,15 @@ matplotlib.rcParams.update({'font.size': 25})
 
 
 
+#path to jystilts
+jy_path = '/mirror/scratch/hbarker/pkgs/jystilts.jar'
+#path to tmatch2.py. Is called as part of os, so must be the whole path
+match2_fpath = '/home/hbarker/scripts/tmatch2.py'
+
+
+
+
+
 		
 parser = argparse.ArgumentParser(description="Collect calibration inputs")
 parser.add_argument('-v','--vphas_num', help="vphas pointing number", required=True)
@@ -34,6 +43,11 @@ args = parser.parse_args()
 
 ex_path = os.getcwd()+'/vphas_'+args.vphas_num+'_ex'
 a_block, b_block, c_block = make_lists.bandmerge_list(ex_path)
+
+
+
+
+
 
 
 #block_choice = raw_input('Choose block (a, b, c) : ')
@@ -105,7 +119,9 @@ for filtername in filternames.keys():
 	
 		#merged apass+ccd filename
 		apass_ccd_name = fits_dirname+'/apass_'+block_choice+'ccd'+str(ccdnum)+'.fits'
-
+			
+			
+		"""	
 		#skip if the file already exists
 		if os.path.exists(apass_ccd_name):
 			continue
@@ -117,7 +133,7 @@ for filtername in filternames.keys():
 			corrections_path = corrections_dir+'/'+block_choice+'_'+filtername+'_aper'+str(apnum)+'_corrections.txt'
 			if os.path.exists(corrections_path): 
 				continue	
-			
+		"""	
 			
 			
 			
@@ -185,9 +201,12 @@ for filtername in filternames.keys():
 	
 
 		#cross-match the apass and ccd file: use a large radius and keep all matches
+		#need to call the python script with stilts imported - doing it here breaks other things
 		print 'Merging apass and',block_choice,'block ccd', str(ccdnum)
 		apass_match_radius = 5 #arcsec
-		os.system('java -jar /mirror/scratch/hbarker/pkgs/jystilts.jar /home/hbarker/scripts/tmatch2.py {} {} {} {} {} {} {} {} {} {} {} {} {} {}'.format(temp_path, apass, 'fits', True, 'csv', False, 'RA', 'DEC' , 'radeg', 'decdeg', apass_match_radius, '1and2', 'all', apass_ccd_name) )
+
+		command_line = 'java -jar '+jy_path+' '+match2_fpath+' {} {} {} {} {} {} {} {} {} {} {} {} {} {}'
+		os.system(command_line.format(temp_path, apass, 'fits', True, 'csv', False, 'RA', 'DEC' , 'radeg', 'decdeg', apass_match_radius, '1and2', 'all', apass_ccd_name) )
 
 
 		print
@@ -258,7 +277,9 @@ for filtername in filternames.keys():
 
 		#temporary filename
 		distances = fits_dirname+'/apass_'+block_choice+'ccd'+str(ccdnum)+'_distances.fits'
-		os.system('java -jar /mirror/scratch/hbarker/pkgs/jystilts.jar /home/hbarker/scripts/tmatch2.py {} {} {} {} {} {} {} {} {} {} {} {} {} {}'.format(apass_ccd_name, temp_path, 'fits', True, 'fits', True, 'RA', 'DEC' , 'RA', 'DEC', 15, '1and2', 'all', distances))
+		
+		command_line = 'java -jar '+jy_path+' '+match2_fpath+' {} {} {} {} {} {} {} {} {} {} {} {} {} {}'
+		os.system(command_line.format(apass_ccd_name, temp_path, 'fits', True, 'fits', True, 'RA', 'DEC' , 'RA', 'DEC', 15, '1and2', 'all', distances))
 		
 
 		distancefile = fits.open(distances)
