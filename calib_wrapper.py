@@ -23,7 +23,7 @@ print "Downloading..."
 sp.call(["download_vphas.sh", reqNo, vphas_num])
 print
 print "Sorting files..."
-#os.system("sort_vphas.py -v %s" %vphas_num)
+os.system("sort_vphas.py -v %s" %vphas_num)
 print
 print 'Please check the sorted files'
 raw_input('Press any key to continue')

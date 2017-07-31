@@ -4,6 +4,7 @@
 #use only the best stars ie. good photometry, magnitudes ~13 to ~19
 #calculate the u bannd magnitude shift needed to put the maximum number of stars between the MS and G0V lines
 #update catalogue magnitudes and write the shifts and errors to file
+#r2 (blue blcok) mags are used ini the calibration
 
 
 from astropy.io import fits
@@ -649,7 +650,7 @@ for ap_rad in range(2,6):
 
 
 	#keep track of the calculated shifts and errors
-	shifts_arr.append( [str(ap_rad), str(-optimal_u_shift), str(shift_err) ] )
+	shifts_arr.append( [str(ap_rad), str(optimal_u_shift), str(shift_err) ] )
 
 
 

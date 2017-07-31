@@ -198,7 +198,7 @@ for i,filtername in enumerate(filternames):
 			counts_err = table[ap_name+'_err']
 
 			#vphas header data used to calculate mags
-			exp_time = table['exp_time']
+			exp_time = table['Exp_time']
 			zpt = table['Apasszpt']
 			
 	

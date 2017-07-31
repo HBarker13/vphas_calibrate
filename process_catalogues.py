@@ -257,6 +257,7 @@ for block_index,block in enumerate(all_catnames):
                 						line=line.split()
                 						corrections_list.append(float(line[1]))
                 						
+                				#true_mag = line - apcor		
                 				corr_AB_mags = [line-corrections_list[ccdnum-1] for line in AB_mags]  #0 counting	
                 				if apname+'_corr_AB' not in colnames:
             						table = make_lists.append_table(table, apname+'_corr_AB', corr_AB_mags, np.dtype('>f4'))
