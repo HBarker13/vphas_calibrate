@@ -1,6 +1,6 @@
 #!/mirror/scratch/hbarker/pkgs/anaconda/bin/python
 
-"""Calibrate Halpha magnitudes using a (r-Halpha) vs (r-i) plot """
+"""Calibrate Halpha magnitudes using a (r-Halpha) vs (r-i) plot - see Drew 2014. It work by making a plot simialr to those seen in Drew, and shifting the Halpha magnitudes of the stars until the number of stars between the relevant stellar lines is maximised. """
 
 
 from astropy.io import fits
@@ -33,6 +33,9 @@ def append_table(table, name, arr, d_type):
     return newtable
 
     
+    
+    
+    
 parser = argparse.ArgumentParser(description="Collect calibration inputs")
 parser.add_argument('-v','--vphas_num', help="vphas pointing number", required=True)
 parser.add_argument('-b','--block', help="vphas offset block", required=True)
@@ -46,7 +49,7 @@ vphas_filternames = {'u':0, 'g':1, 'r':2, 'r2':3, 'i':4, 'NB':5}
 
 
 #block_choice = raw_input('Block a or b? ')
-block_choice = args.block
+block_choice = args.block.lower()
 if block_choice=='a':
 	block = a_block
 	merged_fpath = os.getcwd()+'/a_block_merged_cat.fits'
@@ -66,9 +69,7 @@ if not os.path.exists(img_dir):
 
 
 
-
-
-
+#open the bandmerged file
 openfile = fits.open(merged_fpath)
 table = openfile[1].data
 names = table.dtype.names
@@ -76,6 +77,7 @@ openfile.close()
 
 
 
+#Create synthetic stellar lines using the tables in Drew et al. 2014. See the vphas webpage > publications
 
 #A0 synthetic colours for MS from vphas table a2. a_0 = reddening at 5500angstroms
 #A_0: u-g, g-r, r-i, r-ha
@@ -198,7 +200,7 @@ for ap_rad in range(2,6):
 	print ap_name
 	
 
-	#synthetic tracks are in vega, so use vega
+	#synthetic tracks are in vega, so use vega magnitudes
 	nb_mags = table[ap_name+'_mag_'+nb_appendix]
 	
 	if ap_name+'_corr_'+r_appendix in names:
@@ -217,7 +219,7 @@ for ap_rad in range(2,6):
 
 
 
-	#remove high/low mags
+	#remove high/low mags and only use the best photometry
 	r_mags = [line if 13<line<19 else float('nan') for line in r_mags]
 	i_mags = [line if 13<line<19 else float('nan') for line in i_mags]
 	nb_mags = [line if 13<line<19 else float('nan') for line in nb_mags]
@@ -251,11 +253,11 @@ for ap_rad in range(2,6):
 	nb_shifts = np.linspace(-0.1, 0.7, 801)
 
 
-	#shift the u band magnitudes until the main body of stars lies between the G0V and MS lines
+	#shift the Halpha magnitudes until the main body of stars lies between the G0V and MS lines
+	#on the colour-colour plot
 	print 'Shifting Halpha magnitudes'
 	for nb_shift in nb_shifts:
 
-		#print 'Shifting by:', u_shift
 		shifted_r_min_nb = [val+nb_shift for val in r_min_nb]
 	
 	
@@ -296,7 +298,7 @@ for ap_rad in range(2,6):
 
 
       		#NEED TO CHANGE TO A3
-		#smooth A0V line
+		#smooth A2V line
 		x = np.array(A2V_r_min_i)
 		y = np.array(A2V_r_min_nb)
 		A2V_func = interpolate.interp1d(x,y)
@@ -309,7 +311,7 @@ for ap_rad in range(2,6):
 		cut_yedges = [val for val in yedges if ymin<val<ymax]
 
 
-		#smooth ms line
+		#smooth main sequence line
 		x = np.array(ms_r_min_i)
 		y = np.array(ms_r_min_nb)
 		MS_func = interpolate.interp1d(x,y)
@@ -320,7 +322,7 @@ for ap_rad in range(2,6):
 	
 	
 		
-		#smooth A3V plot
+		#smooth AV plot
 		plt.plot(A2V_xsmooth, A2V_ysmooth, 'k--',)
 		#plt.annotate('A3V', xy=(2.2, 1.5))
 	        
