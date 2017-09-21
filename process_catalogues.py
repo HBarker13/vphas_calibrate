@@ -80,7 +80,7 @@ for block_index,block in enumerate(all_catnames):
     			for line in block:
     				print line
     			#sys.exit()
-    			raw_input('Press any key to continue')
+    			#raw_input('Press any key to continue')
 
 
 
@@ -244,7 +244,7 @@ for block_index,block in enumerate(all_catnames):
 	        	     		if not os.path.exists(corrections_fpath):
 	        	     			print 'ERROR: No aperture correction file'
 	        	     			print corrections_fpath
-	        	     			raw_input('Press any key to continue')
+	        	     			#raw_input('Press any key to continue')
 	        	     			continue
 	             			
 	             			

@@ -3,12 +3,17 @@
 
 
 NB. This only calibrates apertures 3,4,5,6,7, and does not calibrate Halpha data. It assumes a complete data set has been downloaded from CASU. ie. There are 2 u, r, r2, i and 3 g and NB exposures. 
+
 All the below scripts can be called using calibrate_wrapper.py. If you do this, be sure to check the aperture correction plots  (in /aperture_to_apass) to check there was enough vphas - apass matches for a good fit. If the fit is too poor, try commenting out some of the apass star removal criteria (use with caution!).
 
 The scripts assume they are been run from the directory outside vphas_xxx. This can be changed by changing the 'working_path' in the scripts. They can be called using:
 	python script_name.py -v xxxx
 This was added incase there's more than one vphas pointing in the directory.
 
+
+In calc_ap_offset and bandmerge_catalogue.py, jystilts is used. You will need to go into the files and in the first few rows, change the jystilts and tmatch paths. NB. The full path must be used. Jystilts can be downloaded here: 
+http://www.star.bris.ac.uk/~mbt/stilts/#install
+I use the standalone Jystilts.jar. 
 
 
 

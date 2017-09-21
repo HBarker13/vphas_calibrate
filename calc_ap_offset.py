@@ -80,6 +80,7 @@ if not os.path.exists(corrections_dir):
 
 if block_choice=='a' or block_choice=='b':
 	filternames = {'g':1, 'r':2, 'r2':3, 'i':4} #u=0, NB=5
+
 elif block_choice=='c':
 	filternames = {'g':0} #NB=1
 	
@@ -121,7 +122,7 @@ for filtername in filternames.keys():
 		apass_ccd_name = fits_dirname+'/apass_'+block_choice+'ccd'+str(ccdnum)+'.fits'
 			
 			
-		"""	
+			
 		#skip if the file already exists
 		if os.path.exists(apass_ccd_name):
 			continue
@@ -133,7 +134,7 @@ for filtername in filternames.keys():
 			corrections_path = corrections_dir+'/'+block_choice+'_'+filtername+'_aper'+str(apnum)+'_corrections.txt'
 			if os.path.exists(corrections_path): 
 				continue	
-		"""	
+			
 			
 			
 			
@@ -414,7 +415,10 @@ for filtername in filternames.keys():
 			difference_vphas = [[float(line[0])-line[1], float(line[0])] for line in zip(apass_AB, vphas_AB)]
 		
 		
-		
+			#remove any obvious mismatches; if the magnitude difference is more than 1.5 mags
+			difference_vphas = [ line for line in difference_vphas if abs(line[0])<1.5 ]		
+
+
 
 
 			
@@ -440,6 +444,11 @@ for filtername in filternames.keys():
 			newx = [line[1] for line in difference_vphas if low_limit < line[1] < high_limit]  # = apass
 			newy = [line[0] for line in difference_vphas if low_limit < line[1] < high_limit] # = apass-vphas
 
+
+			
+			
+						
+			
 
 			
 			#flag an error if this filtering removes all the objects in the list
