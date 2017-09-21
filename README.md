@@ -15,7 +15,8 @@ I use the standalone Jystilts.jar.
 
 - The calibration is based on APASS. Data must be downlaoded in advance from: https://www.aavso.org/apass  and saved as a .csv file. reduce_apass.py will look for any file in the working directory (default /vphas_xxxx ) with "*apass*.csv" in the name. I search using the vphas pointing co-ordinates and a 1.5 degree radius.
 
-- calibrate_halpha.py is relatively new, so can only be run seperately once the bandmerged catalogues have been created. 
+- calibrate_halpha.py is relatively new, so can only be run seperately once the bandmerged catalogues have been created. To call the script, you need to pass the vphas pointing number and which block you want to calibrate (A or B).
+eg. > calibrate_halpha.py -v 6789 -b A
 
 
 IF EVERYTHING IS SET UP CORRECTLY....
