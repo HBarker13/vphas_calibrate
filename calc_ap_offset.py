@@ -28,7 +28,7 @@ matplotlib.rcParams.update({'font.size': 25})
 #path to jystilts
 jy_path = '/mirror/scratch/hbarker/pkgs/jystilts.jar'
 #path to tmatch2.py. Is called as part of os, so must be the whole path
-match2_fpath = '/home/hbarker/scripts/tmatch2.py'
+match2_fpath = '/home/hbarker/scripts/calibrate_vphas/tmatch2.py'
 
 
 

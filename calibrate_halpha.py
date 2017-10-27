@@ -201,7 +201,18 @@ for ap_rad in range(2,6):
 	
 
 	#synthetic tracks are in vega, so use vega magnitudes
-	nb_mags = table[ap_name+'_mag_'+nb_appendix]
+	orig_nb_mags = table[ap_name+'_mag_'+nb_appendix]
+	
+	#calibrate using the provisional calibration: zpt(Halpha) = zpt(r) - 3.01
+	orig_nb_zpt = table['Apasszpt_'+nb_appendix]
+	adjusted_r_zpt = [line-3.01 for line in table['Apasszpt_'+r_appendix] ]
+	
+	zpt_shift = np.subtract( orig_nb_zpt, adjusted_r_zpt )
+	nb_mags = np.add(orig_nb_mags, zpt_shift)
+	
+
+		
+	
 	
 	if ap_name+'_corr_'+r_appendix in names:
 		r_mags = table[ap_name+'_corr_'+ r_appendix]
@@ -271,8 +282,10 @@ for ap_rad in range(2,6):
 	
 
 		#create a 2D histogram of all the stars in the pointing
-		nxbins = int(max(r_min_i)/0.013)
-		nybins = int(max(shifted_r_min_nb)/0.008)
+		xbin_num = 0.008
+		ybin_num = 0.008
+		nxbins = int(max(r_min_i)/xbin_num)
+		nybins = int(max(shifted_r_min_nb)/ybin_num)
 		Hist, xedges, yedges = np.histogram2d(r_min_i , shifted_r_min_nb, bins=(nybins,nxbins))
 	
 
@@ -545,15 +558,16 @@ for ap_rad in range(2,6):
 	#print 'Err on Gaussian mean', tot_err
 
 
-
+	"""
 	#a plot to see what's going on and check the fit is good
 	plt.figure()
 	plt.plot(x, y, 'bo')
 	plt.plot(x_new, gaus_new, 'r-', label='Gaussian')
-	plt.xlabel('u shift')
+	plt.xlabel('Halpha shift')
 	plt.ylabel('Locus counts')
 	plt.legend(loc='best')
 	#plt.show()
+	"""
 	
 	savepath = img_dir + '/'+block_choice+'_Ap'+str(ap_rad)+'.png'
 	plt.savefig(savepath)
@@ -572,8 +586,8 @@ for ap_rad in range(2,6):
 	best_r_min_nb = [val + optimal_nb_shift for val in r_min_nb]
 
 	#create a 2D histogram of all the stars in the pointing
-	nxbins = int(max(r_min_i)/0.013)
-	nybins = int(max(best_r_min_nb)/0.008)
+	nxbins = int(max(r_min_i)/xbin_num)
+	nybins = int(max(best_r_min_nb)/ybin_num)
 	Hist, xedges, yedges = np.histogram2d(r_min_i , best_r_min_nb, bins=(nybins,nxbins))
 
 

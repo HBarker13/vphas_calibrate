@@ -65,10 +65,10 @@ else:
 	
 	
 	
-	#remove objects with errors < 0.1 mags
-	apass_tab = apass_tab[ apass_tab['gerr']<1.0 ]
-	apass_tab = apass_tab[ apass_tab['r_err']<1.0 ]
-	apass_tab = apass_tab[ apass_tab['i_err']<1.0 ]
+	#remove objects with errors > 0.1 mags
+	apass_tab = apass_tab[ apass_tab['gerr'] < 1.0 ]
+	apass_tab = apass_tab[ apass_tab['r_err'] < 1.0 ]
+	apass_tab = apass_tab[ apass_tab['i_err'] < 1.0 ]
 	print 'Removed entries with errors > 0.1 magnitudes'
 	
 	

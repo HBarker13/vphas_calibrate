@@ -580,7 +580,11 @@ for ap_rad in range(2,6):
 
 	
 	best_u_min_g = [val + optimal_u_shift for val in u_min_g]
-
+	
+	#check the histogram plots the same thing as a standard plot
+	#plt.plot(g_min_r, best_u_min_g, 'o')
+	
+	
 	#create a 2D histogram of all the stars in the pointing
 	nxbins = int(max(g_min_r)/0.017)
 	nybins = int(max(best_u_min_g)/0.025)
@@ -599,7 +603,8 @@ for ap_rad in range(2,6):
 	extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
 
 	plt.clf()
-	plt.imshow(Hist, extent=extent, cmap='autumn')						
+	plt.imshow(Hist, extent=extent, cmap='autumn')	
+						
 
 	plt.xlim(-0.5, 3.0)
 	plt.ylim(-1.4, 3)
@@ -640,6 +645,7 @@ for ap_rad in range(2,6):
 	plt.plot(x, y, 'k--')
  	plt.annotate('A2V', xy=(2.2, 2.5))
  	
+
  	
  	#save
 	savepath = img_dir +'/'+block_choice+'_'+ap_name+'.png'

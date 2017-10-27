@@ -1,62 +1,45 @@
 #----------------To calibrate a VPHAS+ pointing-----------------#
 
 
-IMPORTANTS POINTS BEFORE YOU START
 
-- This only calibrates apertures 3,4,5,6,7. It assumes a complete data set has been downloaded from CASU. ie. There are 2 u, r, r2, i and 3 g and NB exposures. 
+NB. This only calibrates apertures 3,4,5,6,7, and does not calibrate Halpha data. It assumes a complete data set has been downloaded from CASU. ie. There are 2 u, r, r2, i and 3 g and NB exposures. 
 
-- The scripts assume they are been run from the directory outside vphas_xxxx, where xxxx if the vphas pointing number. This can be changed by changing the 'working_path' in the scripts. All scripts can be called using:
+All the below scripts can be called using calibrate_wrapper.py. If you do this, be sure to check the aperture correction plots  (in /aperture_to_apass) to check there was enough vphas - apass matches for a good fit. If the fit is too poor, try commenting out some of the apass star removal criteria (use with caution!).
+
+The scripts assume they are been run from the directory outside vphas_xxx. This can be changed by changing the 'working_path' in the scripts. They can be called using:
 	python script_name.py -v xxxx
 This was added incase there's more than one vphas pointing in the directory.
 
-- In calc_ap_offset and bandmerge_catalogue.py, jystilts is used. You will need to go into the files and in the first few rows, change the jystilts and tmatch paths. The full path must be used. Jystilts can be downloaded here: 
+
+In calc_ap_offset and bandmerge_catalogue.py, jystilts is used. You will need to go into the files and in the first few rows, change the jystilts and tmatch paths. NB. The full path must be used. Jystilts can be downloaded here: 
 http://www.star.bris.ac.uk/~mbt/stilts/#install
 I use the standalone Jystilts.jar. 
 
-- The calibration is based on APASS. Data must be downlaoded in advance from: https://www.aavso.org/apass  and saved as a .csv file. reduce_apass.py will look for any file in the working directory (default /vphas_xxxx ) with "*apass*.csv" in the name. I search using the vphas pointing co-ordinates and a 1.5 degree radius.
-
-- calibrate_halpha.py is relatively new, so can only be run seperately once the bandmerged catalogues have been created. To call the script, you need to pass the vphas pointing number and which block you want to calibrate (A or B).
-eg. > calibrate_halpha.py -v 6789 -b A
 
 
-IF EVERYTHING IS SET UP CORRECTLY....
+1. Download VPHAS+ files from CASU. This set of scripts they are put in a directory vphas_xxxx  where xxx if the four number vphas pointing number. eg. vphas_0175. Move the filelist to /vphas_xxx/file_list_xxx 
 
-...All the scripts can be called using calibrate_wrapper.py. This will call them in the correct order and pass important flags. HOWEVER, if you do this, be sure to check the aperture correction plots  (in /aperture_to_apass) to check there was enough vphas - apass matches for a good fit, and keep an eye on the progress - I wrote these scripts for me, so they are not robust and do not stop if the previous one broke. The request number is the number returned by CASU when you request the data eg. 001234 (remember the leading zeros!).
+2. sort_vphas.py  Make a directory vphas_xxx_ex and sorts the raw files. This makes it easier to see which directory contains ovbservations from which band. 
 
+3. decompress_vphas.py : Decompress all the files using imcopy
 
+4. extract_ccds.py : Extract each of the 32 CCDs into its own file
 
-
-IF YOU WANT TO GO ONE STEP AT A TIME...
-
-1. download_vphas.sh : Download VPHAS+ files from CASU. You need to go into the file beforehand and change USERNAME and PASSWORD - no quotation marks are needed. The data is put into a directory named vphas_xxxx  where xxx if the four number vphas pointing number. eg. vphas_6789. To call this script on it's own, you need to pass the request number and vphas pointing number:
-	> download_vphas.sh req_num pointing_num
-eg. download_vphas.sh 001234 6789
-
-
-2. sort_vphas.py  This makes a directory, vphas_xxx_ex, and sorts the raw files to make it easier to see which directory contains ovbservations from which band. 
-Called as: sort_vphas.py -v pointing_num
-eg. sort_vphas.py -v 6789
-
-
-3. decompress_vphas.py : Decompress all the files using imcopy, as vphas data is Rice compressed. This step may not be necessary?
-
-4. extract_ccds.py : Each vphas image (single) file has a CCD's data in each of the FITS extentions. This script extracts each of the 32 CCD images into their own files
-
-5. reduce_apass.py  Removes apass datapoints with large errors, only one observation, and merges repeated measurments of the same object.
+5. reduce_apass.py   Download apass data from: https://www.aavso.org/apass  and save as a .csv file.  I use the coordinates of the vphas pointing and a 2 degree radius. Remove very faint / very bright stars in the apass catalalogue, combine observations of the same star that aren't listed with the same coordinates, and remove objects with only one observation. Creates apass_reduced.csv.
 
 
 6. calc_ap_offset.py.   
-	Apass and vphas objects are then matched, with any poor photometry thrown away.  The stars are matched by matching all vphas stars within 5arcsec of an apass star and choosing the brightnest as the true match. (If there was a brighter star neaby, that one would have been chosen as the apass star). This reduces noise in the calibration.  
+	Apass and vphas objects are then matched, with any poot photometry thrown away.  The stars are matched by matching all vphas stars within 5arcsec of an apass star and choosing the brightnest as the true match. (If there was a brighter star neaby, that one would have been chosen as the apass star). This reduces noise in the calibration.  
 	
 	The magnitudes of the matched apass and vphas stars are calculated (in AB) for apertures 3,4,5,6 and plotted, and the average magnitude offset calculated. Creates txt files with aperture corrections and errors.
 	
 	NB. THE USER MUST CHECK the plots created to make sure there's enough apass stars for a good calibration. However, the error comes from the standard deviation of distance from the line, so poor fits will have a larger error.
 	
 
-7. process_catalogues.py  (previously combine_cats.py).  Loops through all the catalogue files, adding useful header information as columns to make using the bandmerged catalogue easier to use. Uses the txt files of aperture corrections to correct vphas magntiudes.  
+7. process_catalogues.py  (previously combine_cats.py).  Loops through all the catalogue files, adding useful header information as columns to make using the bandmerged catalogue easier. Uses the txt files of aperture corrections to correct the vpahs magntiudes. An error will be flagged for some of the apertures 
 
 Column names: ***_mag_AB = AB magnitudes using apasszpt (from the header, in AB):   -2.5*log10( counts / exptime ) + apasszpt
-              ***_mag_ = vega magnitude. AB to vega conversions calculated using zeropoints from SVO. Janet Drew says the u band ones are likely wrong by ~0.3 mag. This should be corrected for by the u band calibration process
+              ***_mag_ = vega magnitude. AB to vega conversions calculated using zeropoints from SVO. Janet Drew says the u badn ones are likely wrong by ~0.3 mag. This should be corrected for by the calibration process
               ***_corr = vega magnitudes, including the aperture correction
               ***_corr_AB = AB magnitudes, including the aperture correction:  -2.5*log10( counts / exptime ) + apasszpt - ap_correction
 
@@ -66,6 +49,9 @@ Column names: ***_mag_AB = AB magnitudes using apasszpt (from the header, in AB)
 9. u_correct_auto.py  Uses the bandmerged catalogues. Calibrates the u band by plotting (u-g) vs (g-r) plots, overlaying stellar reddening lines from Drew 2014, and shifting u band magnitudes until the most stars are between the MS and G0V lines.
 The error on the u band shift is the shift within which the star count differs by less than 5%.
 Results are written to file and calibrated u band magnitudes added to catalogues.
+
+(OLD: u_correct.py   Uses the bandmerged catalogues. Calibrate the u band magnitudes by plotting the calibrated u-g, g-r colours of the vphas stars. The user must choose the u band correction to apply so that largest density of stars falls between the MS and G0V reddening line. The corrected u band magnitudes and errors are added to the bandmerged catalogue and the single band catalogue. )
+
 
 10. Run calc_errs.py to calculate the total error (photon count and aperture correction errors). Created columns containing the upper and lower magnitude limits on a measurment.
 
