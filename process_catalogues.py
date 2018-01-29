@@ -22,6 +22,7 @@ import make_lists
 
 args = make_lists.get_vphas_num()
 ex_path = os.getcwd() +  '/vphas_'+args.vphas_num+'_ex'
+zptname = 'Nightzpt'
 start = datetime.now()
 
 
@@ -41,22 +42,18 @@ NBd_conv = 2.5*math.log((3631.0/2669.32) ,10)
 #Loop though a, b, and c block in order to make everything easier to follow
 a_block, b_block, c_block = make_lists.bandmerge_list(ex_path)
 
-
 a_catnames = [] #in order u,g, r, r2, i,NB
 for dirname in a_block:
 	catname = glob.glob(dirname + '/catalogues/*cat.fits')
 	if len(catname)!=0:
 		a_catnames.append(catname[0])
 		
-		
-b_catnames = []
+		b_catnames = []
 for dirname in b_block:
 	catname = glob.glob(dirname + '/catalogues/*cat.fits')
 	if len(catname)!=0:
 		b_catnames.append(catname[0])
-		
-		
-	
+			
 if None not in c_block:	
 	c_catnames = []
 	for dirname in c_block:
@@ -67,6 +64,10 @@ if None not in c_block:
 	
 else:
 	all_catnames = [a_catnames, b_catnames]
+	
+	
+	
+	
 
 
 for block_index,block in enumerate(all_catnames):
@@ -165,12 +166,13 @@ for block_index,block in enumerate(all_catnames):
         	    	    table = make_lists.append_table(table, 'Ccd_num', num_list, np.dtype('>f4'))
         	           
 
-			#APASSZPT IS THE APASS ZEROPOINT FOR THE NIGHT -> AB MAGS
-			if 'Apasszpt' not in colnames:   
-      				zpt = hdr['apasszpt']         
+			#APASSZPT = apass zpt (mags) for default extinction 
+			#NIGHTZPT is the average apass zpt for the night
+			if zptname not in colnames:   
+      				zpt = hdr[zptname]         
       		        	magzpt_list = np.full( len(table) , zpt)
         	        	#print "Adding magnitude zeropoint"
-        	        	table = make_lists.append_table(table, 'Apasszpt', magzpt_list, np.dtype('>f4'))  
+        	        	table = make_lists.append_table(table, zptname, magzpt_list, np.dtype('>f4'))  
 
 	
 		  	#Adding exposure time column
@@ -202,9 +204,11 @@ for block_index,block in enumerate(all_catnames):
             	          	
         	    		#uncorrected AB magnitudes
         	   	    	#print 'Adding ', apname, 'AB magnitide'	
-        	    		AB_mags = [( -2.5*math.log10(line / hdr['exptime']) ) + hdr['apasszpt'] if line>0 else float('nan')  for line in table[apname]  ]
+        	    		AB_mags = [( -2.5*math.log10(line / hdr['exptime']) ) + hdr[zptname] if line>0 else float('nan')  for line in table[apname]  ]
         	    		if apname+'_mag_AB' not in colnames:
         	  		 	table = make_lists.append_table(table, apname+'_mag_AB', AB_mags, np.dtype('>f4'))
+        	  		else:
+        	  		 	table[apname+'_mag_AB']=AB_mags
 
 
         	    		#Vega magnitudes	        	
@@ -228,6 +232,8 @@ for block_index,block in enumerate(all_catnames):
 		   		vega_mags = [line-conv for line in AB_mags]
 		   		if apname+'_mag' not in colnames:
 		        		table = make_lists.append_table(table, apname+'_mag', vega_mags, np.dtype('>f4'))  	
+		        	else:
+		        		table[apname+'_mag']=vega_mags
 
 
 				#aperture corrected AB mags for every filter except u and NB
@@ -248,29 +254,39 @@ for block_index,block in enumerate(all_catnames):
 	        	     			continue
 	             			
 	             			
-	        	     		else:
-	        	       			#print 'Adding aperture corrected', apname, 'AB magnitide'
-	        	       			#read in the aperture corrections
-                				corrections_list = []
-               					with open(corrections_fpath) as f:
-               						for line in f:
-                						line=line.split()
-                						corrections_list.append(float(line[1]))
-                						
+        	       			#print 'Adding aperture corrected', apname, 'AB magnitide'
+        	       			#read in the aperture corrections
+               				corrections_list = []
+            				with open(corrections_fpath) as f:
+              					for line in f:
+                					line=line.split()
+                					corrections_list.append(float(line[1]))
+                				
+                			#calculate aperture corrected magnitudes			
+                			if np.isnan(corrections_list[ccdnum-1]): 
+                				corr_AB_mags = [ float('nan') for line in AB_mags]
+                				corr_vega_mags = [ float('nan') for line in AB_mags]
+                			else:		
                 				#true_mag = line - apcor		
                 				corr_AB_mags = [line-corrections_list[ccdnum-1] for line in AB_mags]  #0 counting	
-                				if apname+'_corr_AB' not in colnames:
-            						table = make_lists.append_table(table, apname+'_corr_AB', corr_AB_mags, np.dtype('>f4'))
-            					else:
-            						table[ apname+'_corr_AB' ] = corr_AB_mags
-	
-                	
-	
                 				corr_vega_mags = [line-conv for line in corr_AB_mags]  #0 counting
-                				if apname+'_corr' not in colnames:		
-                			     		table = make_lists.append_table(table, apname+'_corr', corr_vega_mags, np.dtype('>f4'))
-                			     	else:
-            						table[ apname+'_corr' ] = corr_vega_mags
+                			
+                			
+                			
+                			
+                			#append the table
+                			if apname+'_corr_AB' not in colnames:
+            					table = make_lists.append_table(table, apname+'_corr_AB', corr_AB_mags, np.dtype('>f4'))
+            				else:
+            					table[ apname+'_corr_AB' ] = corr_AB_mags
+            					
+ 
+                			if apname+'_corr' not in colnames:		
+                				table = make_lists.append_table(table, apname+'_corr', corr_vega_mags, np.dtype('>f4'))
+                 			else:
+            					table[ apname+'_corr' ] = corr_vega_mags
+                			        
+
                 			     		
                 			     		
 

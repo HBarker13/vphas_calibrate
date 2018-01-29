@@ -17,6 +17,7 @@ import shutil
 import argparse
 import itertools
 import sys
+from astropy.table import Table, unique
 
 import make_lists
 #change font size
@@ -56,11 +57,10 @@ if block_choice=='a': block = a_block
 elif block_choice=='b': block = b_block
 elif block_choice=='c': block = c_block
 
-# reduced apass file
-apass = os.getcwd() +'/apass_reduced.csv'
-if not os.path.exists(apass):
-	print 'Could not find the reduced apass file:', apass
-	print 'Try reduce_apass.py'
+#panstarrs file
+panstarrs = os.getcwd() +'/panstarrs.fits'
+if not os.path.exists(panstarrs):
+	print 'Could not find the reduced panstarrs file:', panstarrs
 	sys.exit()
 	
 
@@ -77,8 +77,8 @@ if not os.path.exists(corrections_dir):
 
 
 
-#Match vphas and apass objects.
-#use topcat to match the apass to vphas ccd stars and save the resultant table
+#Match vphas and panstarrs objects.
+#use topcat to match the panstarrs to vphas ccd stars and save the resultant table
 #Use magnitude using aperture 7 to remove bad stars
 
 if block_choice=='a' or block_choice=='b':
@@ -91,13 +91,16 @@ elif block_choice=='c':
 for filtername in filternames.keys():	
 	print filtername
 	
+	
 	#if the catalogue can't be found
 	if block[filternames[filtername]] is None:
 		print filtername, 'catalogue is None'
 		sys.exit()
 		
 
-	catpath = glob.glob(block[filternames[filtername]] + '/catalogues/*cat.fits')
+	catpath = glob.glob(block[filternames[filtername]] + '/catalogues/*cat_original.fits')
+	if len(catpath)==0:
+		catpath = glob.glob(block[filternames[filtername]] + '/catalogues/*cat.fits')
 	
 	if len(catpath)==0:
 		print 'No catalogue'
@@ -120,14 +123,13 @@ for filtername in filternames.keys():
 	for ccdnum in range(1,33):	
 	
 	
-	
 		#merged apass+ccd filename
-		apass_ccd_name = fits_dirname+'/apass_'+block_choice+'ccd'+str(ccdnum)+'.fits'
+		panstarrs_ccd_name = fits_dirname+'/panstarrs_'+block_choice+'ccd'+str(ccdnum)+'.fits'
 			
 			
 			
 		#skip if the file already exists
-		if os.path.exists(apass_ccd_name):
+		if os.path.exists(panstarrs_ccd_name):
 			continue
 			
 			
@@ -149,6 +151,7 @@ for filtername in filternames.keys():
 		#vphas catalogue files contain the catalogues for all 32 ccds
 		#create a temporary fits file of the single ccd catalogue to pipe into topcat
 		temp_path = catpath[:-5]+'_ccd'+str(ccdnum)+'.fits'
+		print 'Creating temporary file: ', temp_path
 	
 		if os.path.exists(temp_path):
 			os.remove(temp_path)
@@ -174,6 +177,7 @@ for filtername in filternames.keys():
 		new_cols = []
 		for name in colnames:
 			if 'Blank' in name: continue
+			if 'Aper_7_mag' in name: continue
 			col = fits.Column(name=name, format=colfields[name][0], array=newtable[name])
 			new_cols.append(col)
 			
@@ -193,140 +197,74 @@ for filtername in filternames.keys():
 		mag_col = fits.Column(name='Aper_7_mag', format='D', array=mags)
 		new_cols.append(mag_col)
 		
+		
 		tbhdu = fits.BinTableHDU.from_columns(new_cols, header=hdr)
 		all_hdus.append(tbhdu)
 		tbhdulist = fits.HDUList(all_hdus)
 		tbhdulist.writeto(temp_path, output_verify='silentfix')	
-			
+		print 'Temporary vphas CCD file created'
+		print	
 
 
 
 
 	
 
-		#cross-match the apass and ccd file: use a large radius and keep all matches
-		#need to call the python script with stilts imported - doing it here breaks other things
-		print 'Merging apass and',block_choice,'block ccd', str(ccdnum)
-		apass_match_radius = 5 #arcsec
+		#cross-match the panstarrs and ccd file
+		#panstarrs coords can be offset, so quite a large radius is needed
+		print 'Merging panstarrs and',block_choice,'block ccd', str(ccdnum)
+		
+		#if filtername=='i': 
+		#	match_radius = 1.0
+		#else:
+	#		match_radius = 3.0 #arcsec
+			
+		match_radius = 1.0 #arcsec
 
 		command_line = 'java -jar '+jy_path+' '+match2_fpath+' {} {} {} {} {} {} {} {} {} {} {} {} {} {}'
-		os.system(command_line.format(temp_path, apass, 'fits', True, 'csv', False, 'RA', 'DEC' , 'radeg', 'decdeg', apass_match_radius, '1and2', 'all', apass_ccd_name) )
+		os.system(command_line.format(temp_path, panstarrs, 'fits', True, 'fits', False, 'RA', 'DEC' , 'raMean', 'decMean', match_radius, '1and2', 'all', panstarrs_ccd_name) )
+
 
 
 		print
-		print 'Removing repeat apass matches and keeping the brightest vphas star'
-		matched = fits.open(apass_ccd_name, mode='update')
-		table = matched[1].data
+		print 'Removing repeat panstarrs matches'
+		table = Table.read(panstarrs_ccd_name)
+		print 'Table length:', len(table)
 		
-	
-		
-		#sequence numbers are unique within a ccd, so use them to identify objects that need removing
-		del_seq_nums = set()
-		for line in table:
-			#find multiple matches to same apass object
-			temptable = table[table['radeg']==line['radeg']]
+		#skip if there aren't any panstarrs-vphas matches
+		if len(table)==0:
+			os.remove(temp_path)
+			print 'No matches: continuing'
+			continue
 			
-			if len(temptable)==1: 
-				continue #only matched to self
-
-			#keep the brightest vphas object as the counterpart
-			maxmag = min(temptable['Aper_7_mag']) #np.min includes nan, min doesn't
-			for repeat in temptable:
-				if repeat['Aper_7_mag']!=maxmag:
-					del_seq_nums.add(repeat['Sequence_number'])
-					
+		
+		#remove any rows that aren't unique
+		#newtab = unique(table, keys=['RA', 'DEC', 'raMean', 'decMean'])
+		newtab = unique(table, keys='Sequence_number')
+		
 			
-			
-		#remove apass-vphas matches that are more than 1.5 arcseconds apart
-		#This shouldn't be needed as we already match to the brightest star in vphas 
-		#ie. If there was a brighter star in the vicinity of the apass star, that would be the apass star	
-		for line in table:
-			if line['Separation']>2.5:
-				del_seq_nums.add( line['Sequence_number'])			
-					
-					
-		for val in del_seq_nums:
-			table = table[table['Sequence_number']!=val]
-
-
+		
+		print 'Number of unique rows:', len(newtab)
+		
+		#overwrite the previous file with the new one
+		newtab.write(panstarrs_ccd_name, format='fits', overwrite=True)
 		
 		
-		
-		
-		#We have an apass - vphas ccd crossmatch list containing only the best matches. Now, 
-		#objects with poor photometry are removed.
-		#remove matches if the vphas object has an error bit flag
-		table = table[table['error_bit_flag']==0]
-		
-		#remove vphas saturated objects
-		del_seq_nums = set()
-		for line in table:
-			if line['peak_height']+line['sky_level'] > saturate: #saturate value from header
-				del_seq_nums.add(line['Sequence_number'])
-		for val in del_seq_nums:
-			table = table[table['Sequence_number']!=val]
-				
-		matched[1].data = table
-		matched.close()		
-		
-
-
-
-
-		#cross-match the vphas ccd catalogue with the cross-matched file containing the best apass-vphas
-		#photometry. Use this to calculate the distance between a matched object and any other nearby stars. If 
-		#there is a vphas star within 2x the seeing of the matched star, the matched star's vphas photometry will be
-		#contaminated, and so the match is removed
-		
-
-		#temporary filename
-		distances = fits_dirname+'/apass_'+block_choice+'ccd'+str(ccdnum)+'_distances.fits'
-		
-		command_line = 'java -jar '+jy_path+' '+match2_fpath+' {} {} {} {} {} {} {} {} {} {} {} {} {} {}'
-		os.system(command_line.format(apass_ccd_name, temp_path, 'fits', True, 'fits', True, 'RA', 'DEC' , 'RA', 'DEC', 15, '1and2', 'all', distances))
-		
-
-		distancefile = fits.open(distances)
-		distancetab = distancefile[1].data
-		distancefile.close()
-		matched = fits.open(apass_ccd_name, mode='update')
-		table = matched[1].data
-		
-		
-		min_pixel_separation = 2 * seeing #seeing is fwhm in pixels
-		#OmegaCAM has 0.218 arcsec per pixel
-		min_separation = 0.218 * min_pixel_separation #in arcsec, as topcat separation column is in arcsec
-		
-
-		
-		
-		#remove objects that are too close together by using the sequence numbers
-		#line['Sequence_number_1'] != line['Sequence_number_2'] means objects aren't matched to themselves
-		del_seq_nums = [line['Sequence_number_1'] for line in distancetab if line['Separation']<min_separation and line['Sequence_number_1'] != line['Sequence_number_2']  ]
-		
-		
-		for val in del_seq_nums:
-			table = table[table['Sequence_number']!=val]
-		
-		
-		matched[1].data = table
-		matched.close()			
-
-
 		#clean up, removing temporary files
 		os.remove(temp_path)
-		os.remove(distances)
+
 		
 
 
 ################################################################################################################
-#plot apass vs vphas magntitudes for different apertures to calculate to the aperture to apass correction
+#plot panstarss vs vphas magntitudes for different apertures to calculate to the aperture to panstarrs correction
 
+print
 print
 	
 	
 	
-#store details of any ccds with no vphas-apass matches	(because of poor apass coverage)
+#store details of any ccds with no vphas-panstarrs matches	(because of poor coverage)
 no_matches = []	
 
 
@@ -334,10 +272,9 @@ no_matches = []
 		
 print 'Calculating aperture corrections'
 for filtername in filternames.keys():
-	print filtername
 
 
-	#directory containing the apass-vphas cross matched fits files
+	#directory containing the panstarrs-vphas cross matched fits files
 	fits_dirname = os.getcwd()+'/'+block_choice+'_'+filtername+'_fitsfiles'
 	
 	
@@ -365,25 +302,31 @@ for filtername in filternames.keys():
 
 
 		for ccdnum in range(1,33):
+		
 			
 			print 'ccd ', str(ccdnum)	
 			
 			#open the vphas catalogue to get header values
 			catpath = glob.glob(block[filternames[filtername]]+'/catalogues/*cat.fits')
+			print 'Catalogue:', catpath
 			cat = fits.open(catpath[0])
 			hdr = cat[ccdnum].header
 			cat.close()
 
 
-			#apass - vphas crossmatched filename
-			apass_ccd_name = fits_dirname+'/apass_'+block_choice+'ccd'+str(ccdnum)+'.fits'
-			openfile = fits.open(apass_ccd_name)
+			#panstarrs - vphas crossmatched filename
+			panstarrs_ccd_name = fits_dirname+'/panstarrs_'+block_choice+'ccd'+str(ccdnum)+'.fits'
+			openfile = fits.open(panstarrs_ccd_name)
 			table = openfile[1].data
 			openfile.close()
+			
+			
+			
+			print 'Table length', len(table)
 	
 	
 			
-			#check to see if there are no apass-vphas crossmatches
+			#check to see if there are no panstarrs-vphas crossmatches
 			if len(table)<5:
 				err_line = 'Block '+ str(block_choice) + ', filter: ' + str(filtername) + ', CCD: ' + str(ccdnum) + ', Ap: ' + str(apnum) + ', no matches '
 				intersect_list.append( [ccdnum, float('nan') ] )
@@ -393,47 +336,48 @@ for filtername in filternames.keys():
 			
 			
 			
-			#calculate vphas magntiudes from the aperture count NOTE: APASS and APASSZPT are in is AB
+			#calculate vphas magntiudes from the aperture count NOTE: APASS, APASSZPT and NIGHTZPT are in AB
 			#Don't apply the aperture correction in the vphas header, we're calculating our own
 			# If you do want to use it: mag = -2.5 * log10( counts * (1+apcor) / exptime ) + zpt
 			vphas_AB = [ ( -2.5 * math.log10( line / hdr['exptime'] ) ) + hdr[zptname] if line>0 else float('nan')  for line in table['Aper_flux_'+str(apnum)] ]
+			
+			
 
-
-
-			#apass mags
+			#Panstarrs seems to be in AB: https://arxiv.org/pdf/1203.0297.pdf
+			#https://outerspace.stsci.edu/display/PANSTARRS/PS1+Database+object+and+detection+tables
 			if filtername=='r2':
-				apass_AB = table['Sloan_r']
+				pan_AB = table['rMeanPSFMag']
 			else:
-				apass_AB = table['Sloan_'+filtername]		
+				pan_AB = table[filtername+'MeanPSFMag']		
+
+		
 
 
-
-			#remove any nan / NA entries in vphas/apass
-			vphas_apass = [[line[0],line[1]] for line in zip(vphas_AB, apass_AB) if line[1]!='NA' and ~np.isnan(line[0])]	
-			vphas_AB = [line[0] for line in vphas_apass]
-			apass_AB = [float(line[1]) for line in vphas_apass]		
+			#remove any nan / NA entries in vphas/panstarrs
+			vphas_pan = [[line[0],line[1]] for line in zip(vphas_AB, pan_AB) if line[1]!='NA' and ~np.isnan(line[0])]	
+			vphas_AB = [line[0] for line in vphas_pan]
+			pan_AB = [float(line[1]) for line in vphas_pan]	
+			
+			
 				
-				
-			#array: [difference between the apass and vphas magnitudes for the same object, apass magnitude]
-			difference_vphas = [[float(line[0])-line[1], float(line[0])] for line in zip(apass_AB, vphas_AB)]
+			#array: [difference between the panstarrs and vphas magnitudes for the same object, panstarrs magnitude]
+			difference_vphas = [[float(line[0])-line[1], float(line[0])] for line in zip(pan_AB, vphas_AB)]
 		
 		
 			#remove any obvious mismatches; if the magnitude difference is more than 1.5 mags
-			difference_vphas = [ line for line in difference_vphas if abs(line[0])<1.5 ]		
-
-
-
-
+			#difference_vphas = [ line for line in difference_vphas if abs(line[0])<1.5 ]
+			
+			
 			
 			#plot graph including best fit line:
-			x = [line[0] for line in difference_vphas] # = apass-vphas
-			y= [line[1] for line in difference_vphas] # = apass
+			x = [line[0] for line in difference_vphas] # = panstarrs-vphas
+			y= [line[1] for line in difference_vphas] # = panstarrs
 			
 					
 		
-			#only use values in a very well-behaved range ie. 13< mag <16. 
-			# APASS saturates for mags <11 and becomes inaccurate >~16
+			#only use values in a very well-behaved range ie. 13< mag <20
 			# VPHAS is good up to ~21st mag, but the g band saturates around ~13th mag
+			#Panstarrs saturation?
 			
 			
 			# have to swap the x and y axes to fit the best fit line
@@ -441,11 +385,11 @@ for filtername in filternames.keys():
 			if filtername=='g': low_limit = 13.0
 			else: low_limit = 12.5
 			
-			high_limit = 17.0
+			high_limit = 20.0
 			
 			
-			newx = [line[1] for line in difference_vphas if low_limit < line[1] < high_limit]  # = apass
-			newy = [line[0] for line in difference_vphas if low_limit < line[1] < high_limit] # = apass-vphas
+			newx = [line[1] for line in difference_vphas if low_limit < line[1] < high_limit]  # = panstarrs
+			newy = [line[0] for line in difference_vphas if low_limit < line[1] < high_limit] # = pan-vphas
 
 
 			
@@ -456,7 +400,7 @@ for filtername in filternames.keys():
 			
 			#flag an error if this filtering removes all the objects in the list
 			if len(newx)==0 or len(newy)==0:
-				print 'No suitable apass matches found for ccd', ccdnum
+				print 'No suitable panstarrs matches found for ccd', ccdnum
 				err_line = 'Block '+ str(block_choice) + ', filter: ' + str(filtername) + ', CCD: ' + str(ccdnum) + 'Ap: ' + str(apnum) + ', no matches with suitable magnitudes '
 				intersect_list.append( [ccdnum, float('nan') ] )
 				error_list.append( [ccdnum, float('nan') ] )
@@ -516,7 +460,7 @@ for filtername in filternames.keys():
 
 
 				
-			#save the intersection: intersection = apass - vphas  -> apass = vphas + intersection
+			#save the intersection: intersection = panstarrs - vphas  -> panstarrs = vphas + intersection
 			# in process_catalogues.py: g_vphas_true = g_vphas_measured - intersection
 			# so we save -1 *intersection
 			intersect_list.append([ccdnum, 0-intersection]) 
@@ -547,19 +491,19 @@ for filtername in filternames.keys():
 			plt.annotate(textline, xy=(0.05, 0.90), xycoords='axes fraction', fontsize=24)
 			
 			if filtername=='r_r':
-				graph_dirname = os.getcwd()+'/aperture_to_apass/'+block_choice+'_r_aper'+str(apnum)+'_plots'
-				catname1 = 'r_{APASS}'
+				graph_dirname = os.getcwd()+'/aperture_to_panstarrs/'+block_choice+'_r_aper'+str(apnum)+'_plots'
+				catname1 = 'r_{Pan-STARRS}'
 				catname2 = 'r_{VPHAS}'
 			elif filtername=='r_b':
-				graph_dirname = os.getcwd()+'/aperture_to_apass/'+block_choice+'_r2_aper'+str(apnum)+'_plots'
-				catname1 = '{r2}_{APASS}'
+				graph_dirname = os.getcwd()+'/aperture_to_panstarrs/'+block_choice+'_r2_aper'+str(apnum)+'_plots'
+				catname1 = '{r2}_{Pan-STARRS}'
 				catname2 = '{r2}_{VPHAS}'
 			else:
-				graph_dirname = os.getcwd()+'/aperture_to_apass/'+block_choice+'_'+str(filtername)+'_aper'+str(apnum)+'_plots'
-				catname1 = str(filtername)+'_{APASS}'
+				graph_dirname = os.getcwd()+'/aperture_to_panstarrs/'+block_choice+'_'+str(filtername)+'_aper'+str(apnum)+'_plots'
+				catname1 = str(filtername)+'_{Pan-STARRS}'
 				catname2 = str(filtername)+'_{VPHAS}'
 			
-			#x = apass - vphas
+			#x = panstarrs - vphas
 			plt.xlabel('$\mathregular{'+catname1+'}$ - $\mathregular{'+catname2+'}$', fontsize=32)
 			plt.ylabel('$\mathregular{'+catname1+'}$', fontsize=32)	
 			
@@ -597,10 +541,10 @@ for filtername in filternames.keys():
 
 
 
-#print out the list of any CCDs with no apass-vphas matches
+#print out the list of any CCDs with no panstarrs-vphas matches
 if len(no_matches)>0:
 	print
-	print 'No APASS - VPHAS+ matches were found for: '
+	print 'No Pan-STARRS - VPHAS+ matches were found for: '
 	for line in no_matches:
 		print line
 	print

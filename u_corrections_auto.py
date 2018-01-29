@@ -60,19 +60,13 @@ elif block_choice=='b':
 	merged_fpath = os.getcwd()+'/b_block_merged_cat.fits'
 elif block_choice=='c': 
 	block = c_block
+print 'Block', block_choice
 print
 
-
-
-#create a directory to store images in
-img_dir = os.getcwd()+'/u_fitting'
-if not os.path.exists(img_dir):
-	os.makedirs(img_dir)
-
-
-
-
-
+if not os.path.exists(merged_fpath):
+	print 'File does not exists:'
+	print merged_fpath
+	raw_input('')
 
 openfile = fits.open(merged_fpath)
 table = openfile[1].data
@@ -114,6 +108,7 @@ A0_r_min_ha = [A0[a][3] for a in A0]
 
 
 
+
 #A2 synthetic colours for MS from vphas table a2. a_0 = reddening at 5500angstroms
 #A_0: u-g, g-r, r-i, r-ha
 #Rv=3.1
@@ -121,6 +116,16 @@ A2 = { 0: [0.021, 0.025, 0.006, -0.004], 2:[0.749, 0.809, 0.432, 0.134 ], 4:[1.5
 
 A2_g_min_r = [A2[a][1] for a in A2]
 A2_u_min_g = [A2[a][0] for a in A2]
+
+
+
+#A3 synthetic colours for MS from vphas table a2. a_0 = reddening at 5500angstroms, Rv=3.1
+#A_0: u-g, g-r, r-i, r-ha
+A3 = {0:[0.038, 0.059, 0.021, -0.008], 2:[0.771, 0.840, 0.446, 0.130], 4:[1.531, 1.597, 0.861, 0.241], 6:[2.241, 2.332, 1.265, 0.328], 8:[2.541, 3.048, 1.660, 0.391], 10:[float('nan'), float('nan'), 2.047, 0.432]}
+
+A3_g_min_r = [A3[a][1] for a in A3]
+A3_u_min_g = [A3[a][0] for a in A3]
+
 
 
 
@@ -211,9 +216,12 @@ for ap_rad in range(2,6):
 
 	#synthetic tracks are in vega, so use vega
 	u_mags = table[ap_name+'_mag_'+u_appendix]
+
 	
+	#aperture corrected mags
 	if ap_name+'_corr_'+g_appendix in names:
-		g_mags = table[ap_name+'_corr_'+g_appendix]
+		g_mags = table[ap_name+'_corr_'+g_appendix]	
+		
 	else:
 		print 'No corrected g mags'
 		sys.exit()		
@@ -229,9 +237,35 @@ for ap_rad in range(2,6):
 	else:
 		print 'No corrected r2 mags'
 		sys.exit()
-
-
-
+		
+		
+		
+			
+	#if there all the corrected mags are NaN, there are no(t enough)
+	#stars to calibrate to so use raw mags	
+	apcor_fail_flag = False
+	
+	if all(np.isnan(val) for val in g_mags) or all(np.isnan(val) for val in r_mags) or all(np.isnan(val) for val in r2_mags) :
+		g_mags = table[ap_name+'_mag_'+g_appendix]
+		r_mags = table[ap_name+'_mag_'+r_appendix]
+		r2_mags = table[ap_name+'_mag_'+r2_appendix]
+				
+		apcor_fail_flag=True
+		
+		
+	#create a directory to store images in
+	if apcor_fail_flag==True:
+		img_dir = os.getcwd()+'/u_fitting_apcor_fail'
+	else:
+		img_dir = os.getcwd()+'/u_fitting'
+	if not os.path.exists(img_dir):
+		os.makedirs(img_dir)
+	
+		
+		
+		
+		
+		
 
 	#remove high/low mags
 	u_mags = [line if 13<line<19 else float('nan') for line in u_mags]
@@ -242,31 +276,33 @@ for ap_rad in range(2,6):
 
 
 
-
 	#calculate colours
 	g_min_r = np.subtract(g_mags, r2_mags)
 	u_min_g = np.subtract(u_mags, g_mags)      
 
+	
  
 	colours = [[line[0], line[1]] for line in zip(g_min_r, u_min_g) if ~np.isnan(line[0]) and ~np.isnan(line[1])]
 	g_min_r = [line[0] for line in colours]
 	u_min_g = [line[1] for line in colours]
 
 
+
 	if len(g_min_r)==0:
 		print 'Length of g-r list is 0'
-		raw_input('Press any key yo continue')
+		raw_input('Press any key to continue')
 		
 	if len(u_min_g)==0:
 		print 'Length of u-g list is 0'
-		raw_input('Press any key yo continue')
+		raw_input('Press any key to continue')
 
 
 	all_hist_sum = []
 	#all the u band magnitude shifts to try.
 	#NB This is a large range because the count number is used to plot a gaussian, from which the optimal
 	# u band shift and error are calculated
-	u_shifts = np.linspace(-1.0, 0.2, 1201)
+	u_shifts = np.linspace(-2.0, 1.0, 3001)
+
 
 	#shift the u band magnitudes until the main body of stars lies between the G0V and MS lines
 	print 'Shifting u magnitudes'
@@ -377,10 +413,9 @@ for ap_rad in range(2,6):
 							
 		#Hist = np.flipud(Hist)						
 		#plt.imshow(Hist, extent=extent, cmap='autumn')		
-		#invery y axis
 		#plt.gca().invert_yaxis()	
 		#plt.show()					
-							
+				
 					
 		all_hist_sum.append( hist_sum )
 							
@@ -389,6 +424,8 @@ for ap_rad in range(2,6):
 	#of the mean of the gaussian
 	index, max_sum = max(enumerate(all_hist_sum), key=operator.itemgetter(1))
 	shift = u_shifts[index]
+	
+	
 	
 	
 		
@@ -444,13 +481,23 @@ for ap_rad in range(2,6):
 		gaus_fit = gaus(x, *popt)
 
 		
+		
+		
 		#calculate the "chi-squared" between the actual values and the fit to see if the loop
-		#needs to continue
+		#needs to continue. Once the chi squared stops increasing AND the peak of the gaussian is within 
+		#5% of the maximum number of counts, continue.
 	
 		from scipy.stats import chisquare
 		chisq = chisquare(y, gaus_fit)
 		chi = chisq[0]/len(x)
 
+
+		#plot the gaussian fit
+		#plt.figure()
+		#plt.plot(x, y, 'bo')
+		#plt.plot(x, gaus_fit, 'r')
+		#plt.show()
+			
 		
 		if prev_chi == None:
 			prev_chi = chi
@@ -463,14 +510,22 @@ for ap_rad in range(2,6):
 			prev_popt = popt
 			continue
 			
-		if chi > prev_chi:
+		if chi > prev_chi and (0.95*max_sum)<popt[0]<(1.05*max_sum):
+		#if chi > prev_chi and (0.9*max_sum)<popt[0]<(1.1*max_sum):
 			gaussian_loop = False
 			print 'Converged'
+						
+			#plot the gaussian fit
+			plt.figure()
+			plt.plot(x, y, 'bo')
+			plt.plot(x, gaus_fit, 'r')
+			plt.show()
 			
+			continue
 			
 			
 	# don't adjust the magnitudes if the fitting failed, but make a plot to see what's
-	# going on	
+	# going on and add corr mags to the catalogue
 	if gaussian_failed == True:
 	
 		x = u_shifts
@@ -485,14 +540,33 @@ for ap_rad in range(2,6):
 	
 		savepath = img_dir + '/'+block_choice+'_Ap'+str(ap_rad)+'_FAILED.png'
 		plt.savefig(savepath)
-		continue
+		
+		
+		
+				
+		openfile = fits.open(merged_fpath, mode='update')
+		block_tab = openfile[1].data
+		print 'Updating', merged_fpath
+
+		#new_u = [float('nan') for line in u_mags]
+		#block_tab[ap_name+'_corr_'+u_appendix] = new_u
+			
+		if not ap_name+'_corr_'+u_appendix in block_tab.dtype.names:
+			new_u = [float('nan') for line in u_mags]
+			block_tab = append_table( block_tab, ap_name+'_corr_'+u_appendix, new_u, '>f4')	
+	
+		openfile[1].data = block_tab
+		openfile.close()
 
 		
+		continue
+
+
 	
 	
 	#popt = [a, mean, sigma]
 	optimal_u_shift = prev_popt[1] #=mean of gaussian fit
-	optimal_counts = prev_popt[0] #number of counts corresponding to the optimal u shift
+	optimal_counts = prev_popt[0] #number of counts corresponding to the optimal u shift. ie. the maximum of the gaussian
 	
 	#Noise on the highest number of counts = sqrt(counts)
 	opt_counts_noise = math.sqrt(optimal_counts)
@@ -636,14 +710,14 @@ for ap_rad in range(2,6):
 
 	
 
-	#smooth A2 line
-	x = np.array(A2_g_min_r)
-	y = np.array(A2_u_min_g)
+	#smooth A3 line
+	x = np.array(A3_g_min_r)
+	y = np.array(A3_u_min_g)
 	func = interpolate.interp1d(x,y)
 	xsmooth = np.linspace(x.min(), x.max(), 300)
 	ysmooth = func(xsmooth)
 	plt.plot(x, y, 'k--')
- 	plt.annotate('A2V', xy=(2.2, 2.5))
+ 	plt.annotate('A3V', xy=(2.2, 2.5))
  	
 
  	

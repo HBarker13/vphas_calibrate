@@ -34,6 +34,10 @@ for dirname in a_block:
 	catname = glob.glob(dirname + '/catalogues/*cat.fits')
 	if len(catname)!=0:
 		a_catnames.append(catname[0])
+	else:
+		print 'No catalogues found'
+		print dirname
+		raw_input('')
 
 
 b_catnames = []
@@ -41,6 +45,10 @@ for dirname in b_block:
 	catname = glob.glob(dirname + '/catalogues/*cat.fits')
 	if len(catname)!=0:
 		b_catnames.append(catname[0])
+	else:
+		print 'No catalogues found'
+		print dirname
+		raw_input('')
 
 c_catnames = []
 for dirname in c_block:
@@ -74,8 +82,8 @@ if not os.path.exists(os.getcwd()+'/'+savename):
 		print 'ccd ', str(i)
 		
 		savename = a_merged_dirname+'/ccd'+str(i)+'.fits'
-		#if os.path.exists(savename):
-			#continue
+		if os.path.exists(savename):
+			continue
 			#os.remove(savename)
 		
 		
@@ -95,9 +103,10 @@ if not os.path.exists(os.getcwd()+'/'+savename):
 			cat_lengths.append(len(tab))
 			ccdfile = fits.BinTableHDU(header=hdr, data=tab)
 			ccdfile.writeto(tempfpath)
+			
 		index, _ = max(enumerate(cat_lengths), key=operator.itemgetter(1)) #choose longest catalogue
 		index+=1
-		#merge catalogues and remove blankcols
+		#merge catalogues (and remove blankcols)
 		
 		command_line = 'java -jar '+jy_path+' '+match_fpath+' {0} {1} {2} {3} {4} {5} {6} {7} {8}'
 		os.system(command_line.format(tempfpaths[0], tempfpaths[1], tempfpaths[2], tempfpaths[3], tempfpaths[4], tempfpaths[5], index, match_radius, savename))
@@ -125,7 +134,7 @@ if not os.path.exists(os.getcwd()+'/'+savename):
 		else:
 			t1 = fits.open(merged_fname)
 			t2 = fits.open(fname)
-			
+					
 			nrows1 = t1[1].data.shape[0]
 			nrows2 = t2[1].data.shape[0]
 			
